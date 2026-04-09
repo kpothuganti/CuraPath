@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discharge — App Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+    background: #0f0f13;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+    gap: 32px;
+  }
+
+  h1 {
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .screen-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .screen-nav button {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid #333;
+    background: transparent;
+    color: #999;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .screen-nav button.active {
+    background: #4f7eff;
+    border-color: #4f7eff;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* Phone frame */
+  .phone {
+    width: 375px;
+    height: 812px;
+    background: #1a1a22;
+    border-radius: 48px;
+    border: 2px solid #333;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.05);
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .status-bar .time { font-size: 15px; font-weight: 700; }
+  .status-bar .icons { display: flex; gap: 6px; align-items: center; }
+
+  /* Screen */
+  .screen {
+    display: none;
+    flex-direction: column;
+    height: calc(812px - 44px);
+    overflow: hidden;
+  }
+
+  .screen.active { display: flex; }
+
+  /* ─────────────── SCREEN: ONBOARDING ─────────────── */
+  .screen-onboarding {
+    background: linear-gradient(160deg, #0d1b4b 0%, #1a1a22 60%);
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    text-align: center;
+    gap: 0;
+  }
+
+  .logo-mark {
+    width: 80px;
+    height: 80px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #4f7eff, #7c5cff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 40px rgba(79,126,255,0.4);
+  }
+
+  .logo-mark svg { width: 44px; height: 44px; }
+
+  .onboard-title {
+    font-size: 30px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+    line-height: 1.1;
+  }
+
+  .onboard-sub {
+    font-size: 15px;
+    color: #8a8a9a;
+    line-height: 1.5;
+    margin-bottom: 48px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #4f7eff, #7c5cff);
+    border: none;
+    border-radius: 16px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 16px;
+    background: rgba(255,255,255,0.07);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    color: #ccc;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .disclaimer-small {
+    font-size: 11px;
+    color: #555;
+    margin-top: 20px;
+    line-height: 1.4;
+    text-align: center;
+  }
+
+  /* ─────────────── SCREEN: UPLOAD ─────────────── */
+  .screen-upload {
+    background: #1a1a22;
+    padding: 0;
+    flex-direction: column;
+  }
+
+  .nav-header {
+    padding: 16px 20px 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .nav-back {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-title { font-size: 17px; font-weight: 700; color: #fff; }
+
+  .upload-body {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .upload-card {
+    flex: 1;
+    border-radius: 20px;
+    border: 2px dashed #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    background: rgba(255,255,255,0.02);
+  }
+
+  .upload-card:hover { border-color: #4f7eff; }
+
+  .upload-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+    background: rgba(79,126,255,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .upload-card-title { font-size: 16px; font-weight: 700; color: #fff; }
+  .upload-card-sub { font-size: 13px; color: #666; text-align: center; padding: 0 20px; }
+
+  .or-divider {
+    text-align: center;
+    color: #444;
+    font-size: 13px;
+    font-weight: 600;
+    position: relative;
+  }
+
+  .upload-tip {
+    background: rgba(79,126,255,0.08);
+    border: 1px solid rgba(79,126,255,0.2);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: #8a9fd4;
+    line-height: 1.5;
+  }
+
+  /* ─────────────── SCREEN: PROCESSING ─────────────── */
+  .screen-processing {
+    background: #1a1a22;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 32px;
+    text-align: center;
+    gap: 24px;
+  }
+
+  .processing-ring {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 3px solid rgba(79,126,255,0.15);
+    border-top-color: #4f7eff;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .processing-title { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .processing-sub { font-size: 14px; color: #666; line-height: 1.5; }
+
+  .processing-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+  }
+
+  .step-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .step.done .step-dot { background: #34d399; }
+  .step.active .step-dot { background: #4f7eff; box-shadow: 0 0 8px #4f7eff; }
+  .step.pending .step-dot { background: #333; }
+
+  .step-label { font-size: 13px; color: #ccc; }
+  .step.done .step-label { color: #34d399; }
+  .step.active .step-label { color: #fff; font-weight: 600; }
+  .step.pending .step-label { color: #555; }
+
+  /* ─────────────── SCREEN: HOME ─────────────── */
+  .screen-home {
+    background: #13131a;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .home-header {
+    padding: 20px 20px 0;
+  }
+
+  .home-greeting { font-size: 13px; color: #666; margin-bottom: 2px; }
+  .home-title { font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+
+  .recovery-bar {
+    margin: 16px 20px;
+    padding: 14px 16px;
+    background: rgba(79,126,255,0.08);
+    border: 1px solid rgba(79,126,255,0.2);
+    border-radius: 16px;
+  }
+
+  .recovery-label { font-size: 11px; font-weight: 600; color: #6a8fd4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .recovery-track { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+  .recovery-fill { height: 100%; width: 40%; background: linear-gradient(90deg, #4f7eff, #7c5cff); border-radius: 3px; }
+  .recovery-days { font-size: 12px; color: #8a9fd4; margin-top: 6px; }
+
+  .section-header {
+    padding: 16px 20px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .section-title { font-size: 15px; font-weight: 700; color: #fff; }
+  .section-link { font-size: 13px; color: #4f7eff; }
+
+  .checkin-card {
+    margin: 0 20px 4px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(79,126,255,0.15), rgba(124,92,255,0.1));
+    border: 1px solid rgba(79,126,255,0.25);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+  }
+
+  .checkin-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: rgba(79,126,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .checkin-text { flex: 1; }
+  .checkin-label { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+  .checkin-sub { font-size: 12px; color: #8a9fd4; }
+
+  .task-card {
+    margin: 0 20px 8px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .task-card.done { opacity: 0.5; }
+
+  .task-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  .task-check.checked {
+    background: #34d399;
+    border-color: #34d399;
+    color: #fff;
+  }
+
+  .task-label { font-size: 14px; color: #ddd; line-height: 1.4; }
+  .task-label.done-text { text-decoration: line-through; color: #555; }
+
+  .med-card {
+    margin: 0 20px 8px;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .med-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: rgba(52,211,153,0.1);
+    border: 1px solid rgba(52,211,153,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .med-info { flex: 1; }
+  .med-name { font-size: 14px; font-weight: 700; color: #fff; }
+  .med-detail { font-size: 12px; color: #666; margin-top: 2px; }
+  .med-time { font-size: 11px; font-weight: 600; color: #34d399; margin-top: 4px; }
+
+  .med-btn {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .med-btn.take { background: #34d399; color: #0d2b1e; }
+  .med-btn.taken { background: rgba(52,211,153,0.1); color: #34d399; }
+
+  /* Bottom tab bar */
+  .tab-bar {
+    height: 82px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 10px 20px;
+    background: rgba(20,20,28,0.95);
+    backdrop-filter: blur(20px);
+    flex-shrink: 0;
+  }
+
+  .tab-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    flex: 1;
+  }
+
+  .tab-icon { font-size: 22px; opacity: 0.4; }
+  .tab-label { font-size: 10px; font-weight: 600; color: #555; }
+  .tab-item.active .tab-icon { opacity: 1; }
+  .tab-item.active .tab-label { color: #4f7eff; }
+
+  /* ─────────────── SCREEN: CHECK-IN ─────────────── */
+  .screen-checkin {
+    background: #13131a;
+    padding: 24px 20px;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .checkin-header { }
+  .checkin-back { font-size: 13px; color: #4f7eff; margin-bottom: 12px; cursor: pointer; }
+  .checkin-progress { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+  .checkin-progress-fill { height: 100%; width: 33%; background: #4f7eff; border-radius: 2px; }
+  .checkin-step { font-size: 12px; color: #555; margin-top: 8px; }
+
+  .checkin-question-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 20px;
+    padding: 24px 20px;
+  }
+
+  .cq-label { font-size: 11px; font-weight: 700; color: #4f7eff; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; }
+  .cq-question { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.3; letter-spacing: -0.3px; }
+
+  .cq-answers {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .cq-answer {
+    padding: 16px;
+    border-radius: 14px;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: #ccc;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+
+  .cq-answer.yes:hover, .cq-answer.yes.selected {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.4);
+    color: #ef4444;
+  }
+
+  .cq-answer.no:hover, .cq-answer.no.selected {
+    background: rgba(52,211,153,0.12);
+    border-color: rgba(52,211,153,0.4);
+    color: #34d399;
+  }
+
+  /* ─────────────── SCREEN: RED FLAG ─────────────── */
+  .screen-redflag {
+    background: #1a0f0f;
+    padding: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    text-align: center;
+    padding: 32px 24px;
+  }
+
+  .redflag-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 28px;
+    background: rgba(239,68,68,0.15);
+    border: 2px solid rgba(239,68,68,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    margin-bottom: 20px;
+  }
+
+  .redflag-title { font-size: 24px; font-weight: 800; color: #ef4444; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .redflag-body { font-size: 15px; color: #999; line-height: 1.5; margin-bottom: 28px; }
+
+  .redflag-symptoms {
+    width: 100%;
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.15);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 24px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .redflag-symptom { font-size: 13px; color: #f87171; display: flex; gap: 8px; }
+  .redflag-symptom::before { content: "!"; font-weight: 800; }
+
+  .btn-call {
+    width: 100%;
+    padding: 18px;
+    background: #ef4444;
+    border: none;
+    border-radius: 16px;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .btn-dismiss {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .redflag-disclaimer {
+    font-size: 11px;
+    color: #44383a;
+    margin-top: 16px;
+    line-height: 1.4;
+  }
+
+  /* ─────────────── SCREEN: INSTRUCTIONS ─────────────── */
+  .screen-instructions {
+    background: #13131a;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .instr-header {
+    padding: 20px 20px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .instr-title { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+  .instr-sub { font-size: 12px; color: #555; margin-top: 4px; }
+
+  .instr-section {
+    padding: 16px 20px 0;
+  }
+
+  .instr-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #4f7eff;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+  }
+
+  .instr-pill {
+    display: inline-block;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #ccc;
+    margin: 0 4px 6px 0;
+  }
+
+  .instr-pill.red {
+    background: rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.2);
+    color: #f87171;
+  }
+
+  .instr-pill.green {
+    background: rgba(52,211,153,0.08);
+    border-color: rgba(52,211,153,0.2);
+    color: #34d399;
+  }
+
+  .appt-card {
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .appt-type { font-size: 14px; font-weight: 600; color: #fff; }
+  .appt-time { font-size: 12px; color: #4f7eff; font-weight: 600; }
+
+  .instr-disclaimer {
+    margin: 16px 20px 24px;
+    padding: 12px 14px;
+    background: rgba(255,200,0,0.05);
+    border: 1px solid rgba(255,200,0,0.15);
+    border-radius: 12px;
+    font-size: 11px;
+    color: #9b8a40;
+    line-height: 1.5;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<h1>Discharge — App Mockup</h1>
+
+<div class="screen-nav">
+  <button class="active" onclick="show('onboarding', this)">Welcome</button>
+  <button onclick="show('upload', this)">Upload</button>
+  <button onclick="show('processing', this)">Processing</button>
+  <button onclick="show('home', this)">Home</button>
+  <button onclick="show('checkin', this)">Check-In</button>
+  <button onclick="show('redflag', this)">Red Flag</button>
+  <button onclick="show('instructions', this)">Instructions</button>
+</div>
+
+<div class="phone">
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span class="time">9:41</span>
+    <div class="icons">
+      <span>●●●●</span>
+      <span>WiFi</span>
+      <span>🔋</span>
+    </div>
+  </div>
+
+  <!-- ─── WELCOME ─── -->
+  <div id="screen-onboarding" class="screen screen-onboarding active">
+    <div class="logo-mark">
+      <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 8C14.268 8 8 14.268 8 22C8 29.732 14.268 36 22 36C29.732 36 36 29.732 36 22C36 14.268 29.732 8 22 8Z" fill="rgba(255,255,255,0.15)"/>
+        <path d="M22 14V22L27 25" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M16 20H20M20 20H24M20 20V16M20 20V24" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0"/>
+      </svg>
+    </div>
+    <div class="onboard-title">Your recovery,<br>made simple.</div>
+    <div class="onboard-sub">Discharge turns your hospital paperwork into plain-English daily tasks, reminders, and check-ins.</div>
+    <button class="btn-primary">Get started</button>
+    <button class="btn-secondary">I already have an account</button>
+    <div class="disclaimer-small">This app helps you follow instructions from your doctor. It does not provide medical advice or diagnosis. Always contact your care team with health concerns.</div>
+  </div>
+
+  <!-- ─── UPLOAD ─── -->
+  <div id="screen-upload" class="screen screen-upload">
+    <div class="nav-header">
+      <button class="nav-back">←</button>
+      <span class="nav-title">Upload your instructions</span>
+    </div>
+    <div class="upload-body">
+      <div class="upload-card" style="flex: 1.2;">
+        <div class="upload-icon">📷</div>
+        <div class="upload-card-title">Take a photo</div>
+        <div class="upload-card-sub">Point your camera at the discharge papers. We'll scan and read them for you.</div>
+      </div>
+      <div class="or-divider">— or —</div>
+      <div class="upload-card">
+        <div class="upload-icon">📄</div>
+        <div class="upload-card-title">Upload a PDF</div>
+        <div class="upload-card-sub">Got a digital copy from the hospital portal? Upload it directly.</div>
+      </div>
+      <div class="upload-tip">💡 Tip: Make sure the text is clear and well-lit. Multiple pages? You can add more photos after the first one.</div>
+    </div>
+  </div>
+
+  <!-- ─── PROCESSING ─── -->
+  <div id="screen-processing" class="screen screen-processing">
+    <div class="processing-ring"></div>
+    <div class="processing-title">Reading your instructions…</div>
+    <div class="processing-sub">We're using AI to turn your paperwork into a simple recovery plan.</div>
+    <div class="processing-steps">
+      <div class="step done">
+        <div class="step-dot"></div>
+        <div class="step-label">✓ Document received</div>
+      </div>
+      <div class="step done">
+        <div class="step-dot"></div>
+        <div class="step-label">✓ Reading text from image</div>
+      </div>
+      <div class="step active">
+        <div class="step-dot"></div>
+        <div class="step-label">Extracting medications & instructions…</div>
+      </div>
+      <div class="step pending">
+        <div class="step-dot"></div>
+        <div class="step-label">Building your daily plan</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── HOME ─── -->
+  <div id="screen-home" class="screen screen-home">
+    <div style="flex: 1; overflow-y: auto;">
+      <div class="home-header">
+        <div class="home-greeting">Good morning, Sarah</div>
+        <div class="home-title">Day 12 of recovery</div>
+      </div>
+
+      <div class="recovery-bar">
+        <div class="recovery-label">Recovery Progress</div>
+        <div class="recovery-track"><div class="recovery-fill"></div></div>
+        <div class="recovery-days">12 of 30 days · 18 days remaining</div>
+      </div>
+
+      <!-- Check-in prompt -->
+      <div class="section-header">
+        <div class="section-title">Morning check-in</div>
+      </div>
+      <div class="checkin-card">
+        <div class="checkin-icon">🩺</div>
+        <div class="checkin-text">
+          <div class="checkin-label">How are you feeling today?</div>
+          <div class="checkin-sub">3 questions · takes 1 minute</div>
+        </div>
+        <span style="color: #4f7eff; font-size: 18px;">›</span>
+      </div>
+
+      <!-- Medications -->
+      <div class="section-header">
+        <div class="section-title">Medications today</div>
+        <div class="section-link">See all</div>
+      </div>
+
+      <div class="med-card">
+        <div class="med-icon">💊</div>
+        <div class="med-info">
+          <div class="med-name">Metoprolol 25mg</div>
+          <div class="med-detail">Take with food</div>
+          <div class="med-time">Due at 8:00 AM · overdue by 1h 41m</div>
+        </div>
+        <button class="med-btn take">Take</button>
+      </div>
+
+      <div class="med-card">
+        <div class="med-icon">💊</div>
+        <div class="med-info">
+          <div class="med-name">Lisinopril 10mg</div>
+          <div class="med-detail">With or without food</div>
+          <div class="med-time">Due at 12:00 PM</div>
+        </div>
+        <button class="med-btn take" style="background:rgba(255,255,255,0.07); color:#666;">Pending</button>
+      </div>
+
+      <!-- Tasks -->
+      <div class="section-header">
+        <div class="section-title">Activity reminders</div>
+      </div>
+
+      <div class="task-card">
+        <div class="task-check checked">✓</div>
+        <div class="task-label done-text">No lifting over 10 lbs</div>
+      </div>
+
+      <div class="task-card">
+        <div class="task-check"></div>
+        <div class="task-label">Check your wound for redness, swelling, or unusual drainage</div>
+      </div>
+
+      <div class="task-card">
+        <div class="task-check"></div>
+        <div class="task-label">Schedule your follow-up with your primary care doctor (within 7 days)</div>
+      </div>
+
+      <div style="height: 20px;"></div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item active">
+        <div class="tab-icon">🏠</div>
+        <div class="tab-label">Home</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">📋</div>
+        <div class="tab-label">Instructions</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">💊</div>
+        <div class="tab-label">Med Log</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">⚙️</div>
+        <div class="tab-label">Settings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── CHECK-IN ─── -->
+  <div id="screen-checkin" class="screen screen-checkin">
+    <div class="checkin-header">
+      <div class="checkin-back">← Back</div>
+      <div class="checkin-progress">
+        <div class="checkin-progress-fill"></div>
+      </div>
+      <div class="checkin-step">Question 1 of 3</div>
+    </div>
+
+    <div class="checkin-question-card">
+      <div class="cq-label">Symptom check</div>
+      <div class="cq-question">Have you had a fever — temperature at or above 101°F (38.3°C) — in the last 24 hours?</div>
+
+      <div class="cq-answers">
+        <div class="cq-answer yes" onclick="this.classList.toggle('selected')">Yes, I had a fever</div>
+        <div class="cq-answer no" onclick="this.classList.toggle('selected')">No, no fever</div>
+      </div>
+    </div>
+
+    <div style="font-size: 12px; color: #444; line-height: 1.5; text-align: center;">
+      This check-in is based on the warning signs from your discharge instructions. It is not a medical evaluation.
+    </div>
+
+    <div style="margin-top: auto;">
+      <button class="btn-primary">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ─── RED FLAG ─── -->
+  <div id="screen-redflag" class="screen screen-redflag">
+    <div class="redflag-icon">⚠️</div>
+    <div class="redflag-title">Contact your care team</div>
+    <div class="redflag-body">Based on your check-in, you may be experiencing a warning sign your doctor wanted you to watch for.</div>
+
+    <div class="redflag-symptoms">
+      <div class="redflag-symptom">You reported a fever above 101°F</div>
+      <div class="redflag-symptom">This was listed as a red flag in your discharge instructions</div>
+    </div>
+
+    <button class="btn-call">📞 Call Dr. Patel's office</button>
+    <button class="btn-dismiss">I'll handle this later</button>
+
+    <div class="redflag-disclaimer">This app does not provide medical advice. If you are experiencing a medical emergency, call 911 immediately.</div>
+  </div>
+
+  <!-- ─── INSTRUCTIONS ─── -->
+  <div id="screen-instructions" class="screen screen-instructions">
+    <div style="flex: 1; overflow-y: auto;">
+      <div class="instr-header">
+        <div class="instr-title">Your Instructions</div>
+        <div class="instr-sub">Based on discharge from Memorial Hospital · Apr 1, 2026</div>
+      </div>
+
+      <div class="instr-section">
+        <div class="instr-section-title">⚠️ Warning signs — call your doctor if you notice:</div>
+        <div>
+          <span class="instr-pill red">Fever above 101°F</span>
+          <span class="instr-pill red">Chest pain or shortness of breath</span>
+          <span class="instr-pill red">Green or bad-smelling wound drainage</span>
+        </div>
+      </div>
+
+      <div class="instr-section" style="margin-top: 16px;">
+        <div class="instr-section-title">💊 Medications</div>
+        <div class="med-card" style="margin: 0 0 8px; background: rgba(255,255,255,0.03);">
+          <div class="med-icon">💊</div>
+          <div class="med-info">
+            <div class="med-name">Metoprolol 25mg</div>
+            <div class="med-detail">Twice a day · 8 AM and 8 PM · Take with food</div>
+          </div>
+        </div>
+        <div class="med-card" style="margin: 0 0 8px; background: rgba(255,255,255,0.03);">
+          <div class="med-icon">💊</div>
+          <div class="med-info">
+            <div class="med-name">Lisinopril 10mg</div>
+            <div class="med-detail">Once a day · 12 PM · With or without food</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="instr-section" style="margin-top: 16px;">
+        <div class="instr-section-title">🚶 Activity restrictions</div>
+        <div>
+          <span class="instr-pill">No lifting over 10 lbs for 2 weeks</span>
+          <span class="instr-pill">No driving for 48 hrs</span>
+          <span class="instr-pill">Short walks are okay</span>
+        </div>
+      </div>
+
+      <div class="instr-section" style="margin-top: 16px;">
+        <div class="instr-section-title">📅 Follow-up appointments</div>
+        <div class="appt-card">
+          <div class="appt-type">Primary care doctor</div>
+          <div class="appt-time">Within 7 days</div>
+        </div>
+        <div class="appt-card">
+          <div class="appt-type">Cardiologist</div>
+          <div class="appt-time">Within 2 weeks</div>
+        </div>
+      </div>
+
+      <div class="instr-section" style="margin-top: 16px;">
+        <div class="instr-section-title">🍽️ Diet</div>
+        <div>
+          <span class="instr-pill green">Low sodium diet</span>
+          <span class="instr-pill green">Limit fluids to 2L/day</span>
+        </div>
+      </div>
+
+      <div class="instr-disclaimer">
+        This is a simplified summary of instructions provided by your doctor. Always follow the original guidance from your care team. This app does not provide medical advice.
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab-item">
+        <div class="tab-icon">🏠</div>
+        <div class="tab-label">Home</div>
+      </div>
+      <div class="tab-item active">
+        <div class="tab-icon">📋</div>
+        <div class="tab-label">Instructions</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">💊</div>
+        <div class="tab-label">Med Log</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">⚙️</div>
+        <div class="tab-label">Settings</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function show(id, btn) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.screen-nav button').forEach(b => b.classList.remove('active'));
+    document.getElementById('screen-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>
