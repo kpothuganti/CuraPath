@@ -93,18 +93,25 @@ export default function AppNavigator() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
 
   useEffect(() => {
+    function handleNotificationData(data: Record<string, unknown>) {
+      if (data?.screen === 'CheckIn') {
+        navigationRef.current?.navigate('CheckIn');
+      } else if (data?.screen === 'MedReminder') {
+        // Navigate to Home tab where med cards + Take/Skip buttons are
+        navigationRef.current?.navigate('Tabs');
+      }
+    }
+
     // Handle tap when app was killed and reopened via notification
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response?.notification.request.content.data?.screen === 'CheckIn') {
-        navigationRef.current?.navigate('CheckIn');
+      if (response?.notification.request.content.data) {
+        handleNotificationData(response.notification.request.content.data as Record<string, unknown>);
       }
     });
 
     // Handle tap while app is running (foreground or background)
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (response.notification.request.content.data?.screen === 'CheckIn') {
-        navigationRef.current?.navigate('CheckIn');
-      }
+      handleNotificationData(response.notification.request.content.data as Record<string, unknown>);
     });
     return () => sub.remove();
   }, []);
