@@ -12,6 +12,16 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4f7eff",
+          "sounds": []
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true
     },

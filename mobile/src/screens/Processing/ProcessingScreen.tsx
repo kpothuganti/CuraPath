@@ -5,6 +5,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { uploadPhoto, uploadPDF } from '../../api/discharge';
 import { getMedications } from '../../api/medications';
 import { dischargeStore } from '../../store/dischargeStore';
+import { getCheckInNotifSettings, scheduleCheckInReminder } from '../../hooks/useNotifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Processing'>;
 
@@ -36,6 +37,12 @@ export default function ProcessingScreen({ navigation, route }: Props) {
 
         const medsRes = await getMedications();
         setMedications(medsRes.data);
+
+        // Schedule daily check-in reminder if enabled
+        const notifSettings = await getCheckInNotifSettings();
+        if (notifSettings.enabled) {
+          await scheduleCheckInReminder(notifSettings.hour, notifSettings.minute);
+        }
 
         clearInterval(timer);
         setStep(STEPS.length - 1);

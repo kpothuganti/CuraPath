@@ -1,8 +1,18 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainerRef, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import * as Notifications from 'expo-notifications';
+
+// Show notifications when app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 import { authStore } from '../store/authStore';
 
@@ -80,11 +90,29 @@ function TabNavigator() {
 
 export default function AppNavigator() {
   const { user, isLoading } = authStore();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+
+  useEffect(() => {
+    // Handle tap when app was killed and reopened via notification
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response?.notification.request.content.data?.screen === 'CheckIn') {
+        navigationRef.current?.navigate('CheckIn');
+      }
+    });
+
+    // Handle tap while app is running (foreground or background)
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (response.notification.request.content.data?.screen === 'CheckIn') {
+        navigationRef.current?.navigate('CheckIn');
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   if (isLoading) return null;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
