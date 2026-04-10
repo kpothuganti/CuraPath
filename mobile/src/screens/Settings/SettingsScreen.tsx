@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, Alert, Switch,
@@ -6,11 +6,36 @@ import {
 import { authStore } from '../../store/authStore';
 import { dischargeStore } from '../../store/dischargeStore';
 import { deleteAccount } from '../../api/auth';
+import {
+  getCheckInNotifSettings,
+  saveCheckInNotifSettings,
+  CheckInNotifSettings,
+} from '../../hooks/useNotifications';
+
 
 export default function SettingsScreen() {
   const { user, logout } = authStore();
   const { clear } = dischargeStore();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [settings, setSettings] = useState<CheckInNotifSettings>({ enabled: true, hour: 8, minute: 0 });
+
+  useEffect(() => {
+    getCheckInNotifSettings().then(setSettings);
+  }, []);
+
+  async function updateSettings(patch: Partial<CheckInNotifSettings>) {
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    await saveCheckInNotifSettings(next);
+  }
+
+  function adjustHour(delta: number) {
+    updateSettings({ hour: (settings.hour + delta + 24) % 24 });
+  }
+
+  function adjustMinute(delta: number) {
+    const next = (settings.minute + delta + 60) % 60;
+    updateSettings({ minute: next });
+  }
 
   async function handleLogout() {
     await logout();
@@ -59,12 +84,47 @@ export default function SettingsScreen() {
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Daily check-in reminder</Text>
           <Switch
-            value={notificationsEnabled}
-            onValueChange={setNotificationsEnabled}
+            value={settings.enabled}
+            onValueChange={(val) => updateSettings({ enabled: val })}
             trackColor={{ true: '#4f7eff' }}
             thumbColor="#fff"
           />
         </View>
+        {settings.enabled && (
+          <View style={[styles.row, { flexDirection: 'column', alignItems: 'flex-start', gap: 10 }]}>
+            <Text style={styles.rowLabel}>Reminder time</Text>
+            <View style={styles.timePicker}>
+              <View style={styles.timeUnit}>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(1)}>
+                  <Text style={styles.timeBtnText}>▲</Text>
+                </TouchableOpacity>
+                <Text style={styles.timeValue}>{(settings.hour % 12 || 12).toString().padStart(2, '0')}</Text>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(-1)}>
+                  <Text style={styles.timeBtnText}>▼</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.timeSep}>:</Text>
+              <View style={styles.timeUnit}>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(5)}>
+                  <Text style={styles.timeBtnText}>▲</Text>
+                </TouchableOpacity>
+                <Text style={styles.timeValue}>{settings.minute.toString().padStart(2, '0')}</Text>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(-5)}>
+                  <Text style={styles.timeBtnText}>▼</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.timeUnit}>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => updateSettings({ hour: (settings.hour + 12) % 24 })}>
+                  <Text style={styles.timeBtnText}>▲</Text>
+                </TouchableOpacity>
+                <Text style={styles.timeValue}>{settings.hour >= 12 ? 'PM' : 'AM'}</Text>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => updateSettings({ hour: (settings.hour + 12) % 24 })}>
+                  <Text style={styles.timeBtnText}>▼</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -102,6 +162,16 @@ const styles = StyleSheet.create({
   rowLabel: { color: '#ccc', fontSize: 15 },
   rowValue: { color: '#555', fontSize: 14 },
   disclaimer: { color: '#555', fontSize: 11, lineHeight: 16 },
+  timePicker: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  timeUnit: { alignItems: 'center', gap: 4 },
+  timeSep: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 2, paddingHorizontal: 2 },
+  timeBtn: {
+    width: 36, height: 28, borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  timeBtnText: { color: '#aaa', fontSize: 11, lineHeight: 14 },
+  timeValue: { color: '#fff', fontSize: 20, fontWeight: '700', minWidth: 36, textAlign: 'center' },
   actions: { padding: 20, gap: 12, marginTop: 'auto' },
   logoutBtn: {
     padding: 16, borderRadius: 16,
