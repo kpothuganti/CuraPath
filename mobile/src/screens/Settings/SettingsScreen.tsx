@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, Alert, Switch,
 } from 'react-native';
 import { authStore } from '../../store/authStore';
 import { dischargeStore } from '../../store/dischargeStore';
 import { deleteAccount } from '../../api/auth';
+import { updateProviderPhone } from '../../api/discharge';
 import {
   getCheckInNotifSettings,
   saveCheckInNotifSettings,
@@ -15,8 +16,9 @@ import {
 
 export default function SettingsScreen() {
   const { user, logout } = authStore();
-  const { clear } = dischargeStore();
+  const { discharge, clear, setDischarge } = dischargeStore();
   const [settings, setSettings] = useState<CheckInNotifSettings>({ enabled: true, hour: 8, minute: 0 });
+  const [providerPhone, setProviderPhone] = useState(discharge?.provider_phone ?? '');
 
   useEffect(() => {
     getCheckInNotifSettings().then(setSettings);
@@ -26,6 +28,17 @@ export default function SettingsScreen() {
     const next = { ...settings, ...patch };
     setSettings(next);
     await saveCheckInNotifSettings(next);
+  }
+
+  async function handleProviderPhoneBlur() {
+    if (!discharge) return;
+    const cleaned = providerPhone.trim() || null;
+    try {
+      const res = await updateProviderPhone(cleaned);
+      setDischarge(res.data);
+    } catch {
+      Alert.alert('Error', 'Could not save provider phone number.');
+    }
   }
 
   function adjustHour(delta: number) {
@@ -78,6 +91,28 @@ export default function SettingsScreen() {
           <Text style={styles.rowValue}>{user?.email}</Text>
         </View>
       </View>
+
+      {discharge && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Care team</Text>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Provider phone</Text>
+            <TextInput
+              style={styles.phoneInput}
+              value={providerPhone}
+              onChangeText={setProviderPhone}
+              onBlur={handleProviderPhoneBlur}
+              placeholder="e.g. 555-867-5309"
+              placeholderTextColor="#444"
+              keyboardType="phone-pad"
+              returnKeyType="done"
+            />
+          </View>
+          <Text style={styles.fieldHint}>
+            Used for the tap-to-call button when a red flag is triggered.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Notifications</Text>
@@ -161,6 +196,8 @@ const styles = StyleSheet.create({
   },
   rowLabel: { color: '#ccc', fontSize: 15 },
   rowValue: { color: '#555', fontSize: 14 },
+  phoneInput: { color: '#fff', fontSize: 14, textAlign: 'right', flex: 1, paddingLeft: 12 },
+  fieldHint: { color: '#444', fontSize: 11, lineHeight: 16, paddingBottom: 8 },
   disclaimer: { color: '#555', fontSize: 11, lineHeight: 16 },
   timePicker: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   timeUnit: { alignItems: 'center', gap: 4 },

@@ -78,6 +78,30 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   }
 });
 
+// PATCH /discharge/latest
+router.patch('/latest', async (req: AuthRequest, res: Response): Promise<void> => {
+  const { provider_phone } = req.body as { provider_phone?: string };
+
+  try {
+    const result = await pool.query(
+      `UPDATE discharges SET provider_phone = $1
+       WHERE id = (
+         SELECT id FROM discharges WHERE user_id = $2 ORDER BY created_at DESC LIMIT 1
+       )
+       RETURNING *`,
+      [provider_phone ?? null, req.userId]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'No discharge record found' });
+      return;
+    }
+    res.json({ data: result.rows[0] });
+  } catch (err) {
+    console.error('Patch discharge error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /discharge/latest
 router.get('/latest', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
