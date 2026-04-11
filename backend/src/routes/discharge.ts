@@ -9,6 +9,35 @@ const router = Router();
 // All discharge routes require auth
 router.use(requireAuth);
 
+// POST /discharge/parse
+// Parse discharge instructions via Claude without saving — used for the review step
+router.post('/parse', async (req: AuthRequest, res: Response): Promise<void> => {
+  const { type, base64, mediaType, text } = req.body as {
+    type?: string;
+    base64?: string;
+    mediaType?: string;
+    text?: string;
+  };
+
+  if (!type || (type === 'photo' && !base64) || (type === 'pdf' && !text)) {
+    res.status(400).json({ error: 'Invalid input: provide base64 for photo or text for pdf' });
+    return;
+  }
+
+  try {
+    const input =
+      type === 'photo'
+        ? { type: 'image' as const, base64: base64!, mediaType: (mediaType ?? 'image/jpeg') as 'image/jpeg' }
+        : { type: 'text' as const, content: text! };
+
+    const parsedJson = await parseDischargeInstructions(input);
+    res.json({ data: parsedJson });
+  } catch (err) {
+    console.error('Discharge parse error', err);
+    res.status(500).json({ error: 'Failed to parse discharge instructions' });
+  }
+});
+
 // POST /discharge
 // Body: { type: 'photo' | 'pdf', base64?: string, mediaType?: string, text?: string,
 //         discharge_date?: string, provider_phone?: string }

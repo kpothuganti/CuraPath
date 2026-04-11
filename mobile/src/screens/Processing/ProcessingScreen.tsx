@@ -2,10 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { uploadPhoto, uploadPDF } from '../../api/discharge';
-import { getMedications } from '../../api/medications';
-import { dischargeStore } from '../../store/dischargeStore';
-import { getCheckInNotifSettings, scheduleCheckInReminder, scheduleMedReminders } from '../../hooks/useNotifications';
+import { parseDischarge } from '../../api/discharge';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Processing'>;
 
@@ -18,7 +15,6 @@ const STEPS = [
 
 export default function ProcessingScreen({ navigation, route }: Props) {
   const [step, setStep] = useState(0);
-  const { setDischarge, setMedications } = dischargeStore();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -28,32 +24,17 @@ export default function ProcessingScreen({ navigation, route }: Props) {
     async function process() {
       try {
         const { type, base64, text } = route.params;
-        const res =
-          type === 'photo'
-            ? await uploadPhoto(base64!, 'image/jpeg')
-            : await uploadPDF(text!);
-
-        setDischarge(res.data);
-
-        const medsRes = await getMedications();
-        setMedications(medsRes.data);
-
-        // Schedule daily check-in reminder if enabled
-        const notifSettings = await getCheckInNotifSettings();
-        if (notifSettings.enabled) {
-          await scheduleCheckInReminder(notifSettings.hour, notifSettings.minute);
-        }
-
-        // Schedule medication reminders + missed-dose nudges
-        if (medsRes.data.length > 0) {
-          await scheduleMedReminders(medsRes.data);
-        }
+        const res = await parseDischarge(type, { base64, text, mediaType: 'image/jpeg' });
 
         clearInterval(timer);
         setStep(STEPS.length - 1);
 
-        // Small pause so user sees "done"
-        setTimeout(() => navigation.replace('Tabs'), 600);
+        setTimeout(() => {
+          navigation.replace('Review', {
+            parsedJson: res.data,
+            uploadParams: route.params,
+          });
+        }, 600);
       } catch (err: any) {
         clearInterval(timer);
         Alert.alert(
