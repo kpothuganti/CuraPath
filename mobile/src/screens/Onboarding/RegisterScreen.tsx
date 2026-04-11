@@ -26,6 +26,7 @@ export default function RegisterScreen({ navigation }: Props) {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await register(email.trim(), password, timezone);
       await setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
+      navigation.navigate('Permissions');
     } catch (err: any) {
       Alert.alert('Error', err.message ?? 'Something went wrong');
     } finally {
