@@ -28,3 +28,9 @@ export async function getLatestDischarge(): Promise<ApiResponse<DischargeRecord>
 export async function getDischarge(id: string): Promise<ApiResponse<DischargeRecord>> {
   return api.get(`/discharge/${id}`);
 }
+
+export async function updateProviderPhone(
+  provider_phone: string | null
+): Promise<ApiResponse<DischargeRecord>> {
+  return api.patch('/discharge/latest', { provider_phone });
+}
