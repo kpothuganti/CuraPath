@@ -1,5 +1,12 @@
 import { api } from './client';
-import { DischargeRecord, ApiResponse } from '../types';
+import { DischargeJSON, DischargeRecord, ApiResponse } from '../types';
+
+export async function parseDischarge(
+  type: 'photo' | 'pdf',
+  opts: { base64?: string; mediaType?: string; text?: string }
+): Promise<ApiResponse<DischargeJSON>> {
+  return api.post('/discharge/parse', { type, ...opts });
+}
 
 export async function uploadPhoto(
   base64: string,
