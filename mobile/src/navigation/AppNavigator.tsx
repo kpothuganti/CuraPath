@@ -20,6 +20,7 @@ import { authStore } from '../store/authStore';
 import WelcomeScreen from '../screens/Onboarding/WelcomeScreen';
 import RegisterScreen from '../screens/Onboarding/RegisterScreen';
 import LoginScreen from '../screens/Onboarding/LoginScreen';
+import PermissionsScreen from '../screens/Onboarding/PermissionsScreen';
 
 // App screens
 import HomeScreen from '../screens/Home/HomeScreen';
@@ -36,6 +37,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   Register: undefined;
   Login: undefined;
+  Permissions: undefined;
   // App modals
   Upload: undefined;
   Processing: { type: 'photo' | 'pdf'; base64?: string; text?: string };
@@ -124,6 +126,7 @@ export default function AppNavigator() {
         {user ? (
           <>
             <Stack.Screen name="Tabs" component={TabNavigator} />
+            <Stack.Screen name="Permissions" component={PermissionsScreen} />
             <Stack.Screen name="Upload" component={UploadScreen} options={{ presentation: 'modal' }} />
             <Stack.Screen name="Processing" component={ProcessingScreen} options={{ presentation: 'modal', gestureEnabled: false }} />
             <Stack.Screen name="CheckIn" component={CheckInScreen} options={{ presentation: 'modal' }} />

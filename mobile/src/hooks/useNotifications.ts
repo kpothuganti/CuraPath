@@ -27,7 +27,10 @@ export async function getCheckInNotifSettings(): Promise<CheckInNotifSettings> {
 export async function scheduleCheckInReminder(hour: number, minute: number): Promise<void> {
   await cancelCheckInReminder();
 
-  const { status } = await Notifications.requestPermissionsAsync();
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  const { status } = existing === 'granted'
+    ? { status: 'granted' }
+    : await Notifications.requestPermissionsAsync();
   if (status !== 'granted') return;
 
   const id = await Notifications.scheduleNotificationAsync({
@@ -71,7 +74,10 @@ export async function saveCheckInNotifSettings(settings: CheckInNotifSettings): 
 export async function scheduleMedReminders(medications: MedicationRecord[]): Promise<void> {
   await cancelAllMedReminders();
 
-  const { status } = await Notifications.requestPermissionsAsync();
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  const { status } = existing === 'granted'
+    ? { status: 'granted' }
+    : await Notifications.requestPermissionsAsync();
   if (status !== 'granted') return;
 
   const ids: string[] = [];
