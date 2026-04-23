@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '../db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { parseDischargeInstructions } from '../services/claude';
+import { extractTextFromPDF } from '../services/pdfExtract';
 
 const router = Router();
 
@@ -19,22 +20,27 @@ router.post('/parse', async (req: AuthRequest, res: Response): Promise<void> => 
     text?: string;
   };
 
-  if (!type || (type === 'photo' && !base64) || (type === 'pdf' && !text)) {
-    res.status(400).json({ error: 'Invalid input: provide base64 for photo or text for pdf' });
+  if (!type || (type === 'photo' && !base64) || (type === 'pdf' && !base64 && !text)) {
+    res.status(400).json({ error: 'Invalid input: provide base64 for photo or pdf' });
     return;
   }
 
   try {
-    const input =
-      type === 'photo'
-        ? { type: 'image' as const, base64: base64!, mediaType: (mediaType ?? 'image/jpeg') as 'image/jpeg' }
-        : { type: 'text' as const, content: text! };
+    let input: Parameters<typeof parseDischargeInstructions>[0];
+
+    if (type === 'photo') {
+      input = { type: 'image', base64: base64!, mediaType: (mediaType ?? 'image/jpeg') as 'image/jpeg' };
+    } else {
+      // PDF: extract text from base64-encoded file, or use pre-extracted text
+      const pdfText = text ?? await extractTextFromPDF(base64!);
+      input = { type: 'text', content: pdfText };
+    }
 
     const parsedJson = await parseDischargeInstructions(input);
     res.json({ data: parsedJson });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Discharge parse error', err);
-    res.status(500).json({ error: 'Failed to parse discharge instructions' });
+    res.status(500).json({ error: err.message ?? 'Failed to parse discharge instructions' });
   }
 });
 
