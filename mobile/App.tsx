@@ -7,7 +7,17 @@ export default function App() {
   const { loadFromStorage } = authStore();
 
   useEffect(() => {
-    loadFromStorage();
+    async function init() {
+      await loadFromStorage();
+      // Proactively refresh the access token on startup so the first API
+      // call never hits a 401 due to an expired token from a previous session
+      const { refreshToken, refresh, logout } = authStore.getState();
+      if (refreshToken) {
+        const success = await refresh();
+        if (!success) await logout();
+      }
+    }
+    init();
   }, []);
 
   return (
