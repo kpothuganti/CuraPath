@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -37,12 +38,20 @@ export default function UploadScreen({ navigation }: Props) {
     });
     if (result.canceled) return;
 
-    // For v1: send the file URI to the backend which will handle text extraction
-    // Full PDF→text extraction via pdfExtract utility is a follow-up
-    Alert.alert(
-      'PDF selected',
-      'PDF text extraction coming soon. For now, please use the camera to photograph your documents.'
-    );
+    const uri = result.assets[0].uri;
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+
+    // Warn if file is over 20MB — Claude vision has limits
+    if (fileInfo.exists && 'size' in fileInfo && fileInfo.size > 20 * 1024 * 1024) {
+      Alert.alert('File too large', 'Please use a PDF under 20MB.');
+      return;
+    }
+
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    navigation.replace('Processing', { type: 'pdf', base64 });
   }
 
   return (
