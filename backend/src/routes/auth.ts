@@ -24,23 +24,31 @@ function signRefresh(): string {
 
 // POST /auth/register
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
-  const { email, password, timezone } = req.body as {
+  const { email, password, timezone, firstName, lastName } = req.body as {
     email?: string;
     password?: string;
     timezone?: string;
+    firstName?: string;
+    lastName?: string;
   };
 
-  if (!email || !password) {
-    res.status(400).json({ error: 'email and password are required' });
+  if (!email || !password || !firstName) {
+    res.status(400).json({ error: 'first name, email, and password are required' });
+    return;
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    res.status(400).json({ error: 'Invalid email address' });
     return;
   }
 
   try {
     const result = await pool.query(
-      `INSERT INTO users (id, email, password_hash, timezone)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, email, timezone, created_at`,
-      [uuidv4(), email.toLowerCase(), hashPassword(password), timezone ?? 'America/New_York']
+      `INSERT INTO users (id, email, password_hash, first_name, last_name, timezone)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, email, first_name, last_name, timezone, created_at`,
+      [uuidv4(), email.toLowerCase(), hashPassword(password), firstName.trim(), lastName?.trim() ?? null, timezone ?? 'America/New_York']
     );
 
     const user = result.rows[0];
@@ -75,7 +83,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
   try {
     const result = await pool.query(
-      `SELECT id, email, timezone, created_at, password_hash FROM users WHERE email = $1`,
+      `SELECT id, email, first_name, last_name, timezone, created_at, password_hash FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
 

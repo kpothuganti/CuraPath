@@ -1,17 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  SafeAreaView, Alert, Switch,
-} from 'react-native';
+import React, { useMemo, useEffect, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch, ScrollView, Modal, FlatList, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { authStore } from '../../store/authStore';
 import { dischargeStore } from '../../store/dischargeStore';
 import { deleteAccount } from '../../api/auth';
-import { updateProviderPhone } from '../../api/discharge';
+import { updateProviderPhone, translateDischarge } from '../../api/discharge';
 import {
   getCheckInNotifSettings,
   saveCheckInNotifSettings,
   CheckInNotifSettings,
 } from '../../hooks/useNotifications';
+import {
+  getPreferredLanguage,
+  setPreferredLanguage,
+  SUPPORTED_LANGUAGES,
+  Language,
+} from '../../hooks/useLanguage';
+import { useTheme } from '../../hooks/useTheme';
 
 
 export default function SettingsScreen() {
@@ -19,9 +24,15 @@ export default function SettingsScreen() {
   const { discharge, clear, setDischarge } = dischargeStore();
   const [settings, setSettings] = useState<CheckInNotifSettings>({ enabled: true, hour: 8, minute: 0 });
   const [providerPhone, setProviderPhone] = useState(discharge?.provider_phone ?? '');
+  const [language, setLanguage] = useState<Language>(SUPPORTED_LANGUAGES[0]);
+  const [langModalVisible, setLangModalVisible] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const C = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
     getCheckInNotifSettings().then(setSettings);
+    getPreferredLanguage().then(setLanguage);
   }, []);
 
   async function updateSettings(patch: Partial<CheckInNotifSettings>) {
@@ -80,6 +91,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>Settings</Text>
       </View>
@@ -103,7 +115,7 @@ export default function SettingsScreen() {
               onChangeText={setProviderPhone}
               onBlur={handleProviderPhoneBlur}
               placeholder="e.g. 555-867-5309"
-              placeholderTextColor="#444"
+              placeholderTextColor={C.placeholderText}
               keyboardType="phone-pad"
               returnKeyType="done"
             />
@@ -121,7 +133,7 @@ export default function SettingsScreen() {
           <Switch
             value={settings.enabled}
             onValueChange={(val) => updateSettings({ enabled: val })}
-            trackColor={{ true: '#4f7eff' }}
+            trackColor={{ true: C.accent }}
             thumbColor="#fff"
           />
         </View>
@@ -163,6 +175,23 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Language</Text>
+        <TouchableOpacity style={styles.row} onPress={() => setLangModalVisible(true)}>
+          <Text style={styles.rowLabel}>Instructions language</Text>
+          <View style={styles.langValue}>
+            {translating
+              ? <ActivityIndicator size="small" color={C.accent} />
+              : <Text style={styles.langValueText}>{language.nativeName}</Text>
+            }
+            <Text style={styles.langChevron}>›</Text>
+          </View>
+        </TouchableOpacity>
+        <Text style={styles.fieldHint}>
+          Your discharge instructions will be extracted and displayed in this language.
+        </Text>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionLabel}>Legal</Text>
         <View style={styles.row}>
           <Text style={styles.disclaimer}>
@@ -180,47 +209,118 @@ export default function SettingsScreen() {
           <Text style={styles.deleteText}>Delete my account & data</Text>
         </TouchableOpacity>
       </View>
+      </ScrollView>
+
+      <Modal visible={langModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Language</Text>
+              <TouchableOpacity onPress={() => setLangModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={SUPPORTED_LANGUAGES}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.langOption, item.code === language.code && styles.langOptionSelected]}
+                  onPress={async () => {
+                    setLangModalVisible(false);
+                    setLanguage(item);
+                    await setPreferredLanguage(item);
+                    if (discharge) {
+                      setTranslating(true);
+                      try {
+                        const res = await translateDischarge(item.name);
+                        setDischarge(res.data);
+                      } catch {
+                        Alert.alert('Translation failed', 'Could not translate your instructions. Please try again.');
+                      } finally {
+                        setTranslating(false);
+                      }
+                    }
+                  }}
+                >
+                  <Text style={styles.langOptionNative}>{item.nativeName}</Text>
+                  <Text style={styles.langOptionEnglish}>{item.name}</Text>
+                  {item.code === language.code && (
+                    <Text style={styles.langCheck}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#13131a' },
-  header: { padding: 20 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  section: { marginTop: 8, paddingHorizontal: 20 },
-  sectionLabel: { color: '#4f7eff', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
-  row: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  rowLabel: { color: '#ccc', fontSize: 15 },
-  rowValue: { color: '#555', fontSize: 14 },
-  phoneInput: { color: '#fff', fontSize: 14, textAlign: 'right', flex: 1, paddingLeft: 12 },
-  fieldHint: { color: '#444', fontSize: 11, lineHeight: 16, paddingBottom: 8 },
-  disclaimer: { color: '#555', fontSize: 11, lineHeight: 16 },
-  timePicker: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeUnit: { alignItems: 'center', gap: 4 },
-  timeSep: { color: '#fff', fontSize: 22, fontWeight: '700', marginBottom: 2, paddingHorizontal: 2 },
-  timeBtn: {
-    width: 36, height: 28, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  timeBtnText: { color: '#aaa', fontSize: 11, lineHeight: 14 },
-  timeValue: { color: '#fff', fontSize: 20, fontWeight: '700', minWidth: 36, textAlign: 'center' },
-  actions: { padding: 20, gap: 12, marginTop: 'auto' },
-  logoutBtn: {
-    padding: 16, borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-  },
-  logoutText: { color: '#ccc', fontSize: 15, fontWeight: '600' },
-  deleteBtn: {
-    padding: 16, borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(239,68,68,0.3)',
-    alignItems: 'center',
-  },
-  deleteText: { color: '#ef4444', fontSize: 15, fontWeight: '600' },
-});
+function makeStyles(C: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: { padding: 20 },
+    title: { color: C.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+    section: { marginTop: 8, paddingHorizontal: 20 },
+    sectionLabel: { color: C.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
+    row: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    rowLabel: { color: C.textSecondary, fontSize: 15 },
+    rowValue: { color: C.textMuted, fontSize: 14 },
+    phoneInput: { color: C.textPrimary, fontSize: 14, textAlign: 'right', flex: 1, paddingLeft: 12 },
+    fieldHint: { color: C.textMuted, fontSize: 11, lineHeight: 16, paddingBottom: 8 },
+    disclaimer: { color: C.textMuted, fontSize: 11, lineHeight: 16 },
+    timePicker: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    timeUnit: { alignItems: 'center', gap: 4 },
+    timeSep: { color: C.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: 2, paddingHorizontal: 2 },
+    timeBtn: {
+      width: 36, height: 28, borderRadius: 8,
+      backgroundColor: C.surfaceStrong,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    timeBtnText: { color: C.textTertiary, fontSize: 11, lineHeight: 14 },
+    timeValue: { color: C.textPrimary, fontSize: 20, fontWeight: '700', minWidth: 36, textAlign: 'center' },
+    scroll: { paddingBottom: 40 },
+    actions: { padding: 20, gap: 12, marginTop: 24 },
+    logoutBtn: {
+      padding: 16, borderRadius: 16,
+      backgroundColor: C.surfaceStrong,
+      borderWidth: 1, borderColor: C.borderMed,
+      alignItems: 'center',
+    },
+    logoutText: { color: C.textSecondary, fontSize: 15, fontWeight: '600' },
+    deleteBtn: {
+      padding: 16, borderRadius: 16,
+      borderWidth: 1, borderColor: C.dangerBorder,
+      alignItems: 'center',
+    },
+    deleteText: { color: C.danger, fontSize: 15, fontWeight: '600' },
+    langValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    langValueText: { color: C.accent, fontSize: 14, fontWeight: '600' },
+    langChevron: { color: C.textMuted, fontSize: 16 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+    modalSheet: {
+      backgroundColor: C.bgSheet, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      maxHeight: '70%', paddingBottom: 40,
+    },
+    modalHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      padding: 20, borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    modalTitle: { color: C.textPrimary, fontSize: 17, fontWeight: '700' },
+    modalClose: { color: C.textMuted, fontSize: 18, paddingHorizontal: 4 },
+    langOption: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingHorizontal: 20, paddingVertical: 14,
+      borderBottomWidth: 1, borderBottomColor: C.border,
+    },
+    langOptionSelected: { backgroundColor: C.surfaceAccent },
+    langOptionNative: { color: C.textPrimary, fontSize: 15, fontWeight: '600', flex: 1 },
+    langOptionEnglish: { color: C.textMuted, fontSize: 13 },
+    langCheck: { color: C.accent, fontSize: 16, fontWeight: '700' },
+  });
+}

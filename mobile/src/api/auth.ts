@@ -6,9 +6,11 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 export async function register(
   email: string,
   password: string,
-  timezone: string
+  timezone: string,
+  firstName: string,
+  lastName: string
 ): Promise<ApiResponse<{ user: UserProfile; accessToken: string; refreshToken: string }>> {
-  return api.post('/auth/register', { email, password, timezone });
+  return api.post('/auth/register', { email, password, timezone, firstName, lastName });
 }
 
 export async function login(

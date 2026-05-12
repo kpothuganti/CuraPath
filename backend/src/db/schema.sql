@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email       TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,             -- bcrypt; swap for Cognito sub in prod
+  first_name  TEXT,
+  last_name   TEXT,
   timezone    TEXT NOT NULL DEFAULT 'America/New_York',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -19,7 +21,8 @@ CREATE TABLE IF NOT EXISTS discharges (
   user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   raw_input_type    TEXT NOT NULL CHECK (raw_input_type IN ('photo', 'pdf', 'fhir')),
   raw_input_url     TEXT,                  -- S3 key (never a public URL)
-  parsed_json       JSONB NOT NULL,
+  parsed_json          JSONB NOT NULL,
+  original_parsed_json JSONB,               -- always the English source; parsed_json holds the display language
   discharge_date    DATE,
   provider_phone    TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()

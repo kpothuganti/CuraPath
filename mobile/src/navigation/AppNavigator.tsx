@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainerRef, NavigationContainer } from '@react-navigation/native';
+import { NavigationContainerRef, NavigationContainer, NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
@@ -15,6 +15,7 @@ Notifications.setNotificationHandler({
 });
 
 import { authStore } from '../store/authStore';
+import { useTheme } from '../hooks/useTheme';
 
 // Auth screens
 import WelcomeScreen from '../screens/Onboarding/WelcomeScreen';
@@ -46,7 +47,7 @@ export type RootStackParamList = {
   CheckIn: undefined;
   RedFlagAlert: { triggeredFlags: string[]; providerPhone?: string };
   // Tab root
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<TabParamList> | undefined;
 };
 
 export type TabParamList = {
@@ -70,23 +71,25 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 }
 
 function TabNavigator() {
+  const C = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
         tabBarStyle: {
-          backgroundColor: '#14141c',
-          borderTopColor: 'rgba(255,255,255,0.07)',
+          backgroundColor: C.bg,
+          borderTopColor: C.border,
         },
-        tabBarActiveTintColor: '#4f7eff',
-        tabBarInactiveTintColor: '#555',
+        tabBarActiveTintColor: C.accent,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Instructions" component={InstructionsScreen} />
-      <Tab.Screen name="MedLog" component={MedLogScreen} />
+      <Tab.Screen name="MedLog" component={MedLogScreen} options={{ tabBarLabel: 'Med Log' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
@@ -101,19 +104,16 @@ export default function AppNavigator() {
       if (data?.screen === 'CheckIn') {
         navigationRef.current?.navigate('CheckIn');
       } else if (data?.screen === 'MedReminder') {
-        // Navigate to Home tab where med cards + Take/Skip buttons are
         navigationRef.current?.navigate('Tabs');
       }
     }
 
-    // Handle tap when app was killed and reopened via notification
     Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response?.notification.request.content.data) {
         handleNotificationData(response.notification.request.content.data as Record<string, unknown>);
       }
     });
 
-    // Handle tap while app is running (foreground or background)
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       handleNotificationData(response.notification.request.content.data as Record<string, unknown>);
     });

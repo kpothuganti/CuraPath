@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator, Alert,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { uploadPhoto, uploadPDF } from '../../api/discharge';
+import { getPreferredLanguage } from '../../hooks/useLanguage';
 import { getMedications } from '../../api/medications';
 import { dischargeStore } from '../../store/dischargeStore';
 import { getCheckInNotifSettings, scheduleCheckInReminder, scheduleMedReminders } from '../../hooks/useNotifications';
+import { useTheme } from '../../hooks/useTheme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Review'>;
 
@@ -16,13 +16,16 @@ export default function ReviewScreen({ navigation, route }: Props) {
   const { parsedJson, uploadParams } = route.params;
   const { setDischarge, setMedications } = dischargeStore();
   const [saving, setSaving] = useState(false);
+  const C = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   async function handleConfirm() {
     setSaving(true);
     try {
+      const lang = await getPreferredLanguage();
       const res = uploadParams.type === 'photo'
-        ? await uploadPhoto(uploadParams.base64!, 'image/jpeg')
-        : await uploadPDF(uploadParams.text!);
+        ? await uploadPhoto(uploadParams.base64!, 'image/jpeg', { language: lang.name })
+        : await uploadPDF(uploadParams.base64!, { language: lang.name });
 
       setDischarge(res.data);
 
@@ -52,7 +55,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
     navigation.replace('Upload');
   }
 
-  const { medications, activity_restrictions, red_flags, diet_restrictions, wound_care, follow_up_appointments } = parsedJson;
+  const { medications, activity_restrictions, red_flags, diet_restrictions, wound_care, follow_up_appointments, sleeping_instructions, exercises } = parsedJson;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -66,7 +69,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {medications.length > 0 && (
-          <Section title="💊 Medications">
+          <Section title="💊 Medications" styles={styles}>
             {medications.map((med, i) => (
               <View key={i} style={styles.card}>
                 <Text style={styles.cardTitle}>{med.name} — {med.dose}</Text>
@@ -83,41 +86,57 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {activity_restrictions.length > 0 && (
-          <Section title="🚶 Activity restrictions">
+          <Section title="🚶 Activity restrictions" styles={styles}>
             {activity_restrictions.map((r, i) => (
-              <BulletRow key={i} text={r} />
+              <BulletRow key={i} text={r} color={C.textSecondary} />
             ))}
           </Section>
         )}
 
         {red_flags.length > 0 && (
-          <Section title="⚠️ Warning signs to watch for">
+          <Section title="⚠️ Warning signs to watch for" styles={styles}>
             {red_flags.map((f, i) => (
-              <BulletRow key={i} text={f} color="#f87171" />
+              <BulletRow key={i} text={f} color={C.dangerText} />
             ))}
           </Section>
         )}
 
         {diet_restrictions.length > 0 && (
-          <Section title="🥗 Diet restrictions">
+          <Section title="🥗 Diet restrictions" styles={styles}>
             {diet_restrictions.map((d, i) => (
-              <BulletRow key={i} text={d} />
+              <BulletRow key={i} text={d} color={C.textSecondary} />
             ))}
           </Section>
         )}
 
         {wound_care.length > 0 && (
-          <Section title="🩹 Wound care">
+          <Section title="🩹 Wound care" styles={styles}>
             {wound_care.map((w, i) => (
-              <BulletRow key={i} text={w} />
+              <BulletRow key={i} text={w} color={C.textSecondary} />
             ))}
           </Section>
         )}
 
         {follow_up_appointments.length > 0 && (
-          <Section title="📅 Follow-up appointments">
+          <Section title="📅 Follow-up appointments" styles={styles}>
             {follow_up_appointments.map((a, i) => (
-              <BulletRow key={i} text={`${a.type} — ${a.timeframe}`} />
+              <BulletRow key={i} text={`${a.type} — ${a.timeframe}`} color={C.textSecondary} />
+            ))}
+          </Section>
+        )}
+
+        {sleeping_instructions && sleeping_instructions.length > 0 && (
+          <Section title="😴 Sleeping" styles={styles}>
+            {sleeping_instructions.map((s, i) => (
+              <BulletRow key={i} text={s} color={C.textSecondary} />
+            ))}
+          </Section>
+        )}
+
+        {exercises && exercises.length > 0 && (
+          <Section title="🏋️ Exercises" styles={styles}>
+            {exercises.map((e, i) => (
+              <BulletRow key={i} text={e} color={C.textSecondary} />
             ))}
           </Section>
         )}
@@ -125,7 +144,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         <View style={styles.disclaimer}>
           <Text style={styles.disclaimerText}>
             This was extracted from your discharge paperwork using AI. If anything looks incorrect,
-            tap "Something's wrong" and retake the photo with better lighting.
+            tap "Something's wrong" to go back and try again.
           </Text>
         </View>
 
@@ -141,7 +160,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
             }
           </TouchableOpacity>
           <TouchableOpacity style={styles.btnRetry} onPress={handleRetry} disabled={saving}>
-            <Text style={styles.btnRetryText}>Something's wrong — retake photo</Text>
+            <Text style={styles.btnRetryText}>Something's wrong — re-enter instructions</Text>
           </TouchableOpacity>
         </View>
 
@@ -150,7 +169,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, styles }: { title: string; children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -159,49 +178,45 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function BulletRow({ text, color = '#ccc' }: { text: string; color?: string }) {
+function BulletRow({ text, color }: { text: string; color: string }) {
   return (
-    <View style={styles.bulletRow}>
-      <Text style={[styles.bullet, { color }]}>·</Text>
-      <Text style={[styles.bulletText, { color }]}>{text}</Text>
+    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 6, paddingRight: 8 }}>
+      <Text style={{ color, fontSize: 16, lineHeight: 20 }}>·</Text>
+      <Text style={{ color, fontSize: 13, lineHeight: 20, flex: 1 }}>{text}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#13131a' },
-  header: { padding: 20, paddingBottom: 8 },
-  title: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginBottom: 6 },
-  subtitle: { color: '#666', fontSize: 13, lineHeight: 18 },
-  scroll: { padding: 20, paddingTop: 8, paddingBottom: 48 },
-  section: { marginBottom: 20 },
-  sectionTitle: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 10 },
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 12, padding: 12, marginBottom: 8,
-  },
-  cardTitle: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  cardDetail: { color: '#aaa', fontSize: 13, marginBottom: 2 },
-  cardMeta: { color: '#666', fontSize: 12, marginTop: 2 },
-  bulletRow: { flexDirection: 'row', gap: 8, marginBottom: 6, paddingRight: 8 },
-  bullet: { fontSize: 16, lineHeight: 20 },
-  bulletText: { fontSize: 13, lineHeight: 20, flex: 1 },
-  disclaimer: {
-    backgroundColor: 'rgba(79,126,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(79,126,255,0.15)',
-    borderRadius: 12, padding: 12, marginBottom: 20,
-  },
-  disclaimerText: { color: '#6a8fd4', fontSize: 11, lineHeight: 16 },
-  actions: { gap: 10 },
-  btnConfirm: {
-    backgroundColor: '#4f7eff', padding: 16,
-    borderRadius: 16, alignItems: 'center',
-  },
-  btnConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  btnRetry: {
-    padding: 14, borderRadius: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
-  },
-  btnRetryText: { color: '#aaa', fontSize: 14, fontWeight: '600' },
-});
+function makeStyles(C: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    header: { padding: 20, paddingBottom: 8 },
+    title: { color: C.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5, marginBottom: 6 },
+    subtitle: { color: C.textTertiary, fontSize: 13, lineHeight: 18 },
+    scroll: { padding: 20, paddingTop: 8, paddingBottom: 48 },
+    section: { marginBottom: 20 },
+    sectionTitle: { color: C.textPrimary, fontSize: 14, fontWeight: '700', marginBottom: 10 },
+    card: {
+      backgroundColor: C.surface,
+      borderWidth: 1, borderColor: C.border,
+      borderRadius: 12, padding: 12, marginBottom: 8,
+    },
+    cardTitle: { color: C.textPrimary, fontSize: 14, fontWeight: '700', marginBottom: 2 },
+    cardDetail: { color: C.textTertiary, fontSize: 13, marginBottom: 2 },
+    cardMeta: { color: C.textMuted, fontSize: 12, marginTop: 2 },
+    disclaimer: {
+      backgroundColor: C.surfaceAccent,
+      borderWidth: 1, borderColor: C.borderAccent,
+      borderRadius: 12, padding: 12, marginBottom: 20,
+    },
+    disclaimerText: { color: C.accentSubtext, fontSize: 11, lineHeight: 16 },
+    actions: { gap: 10 },
+    btnConfirm: { backgroundColor: C.accent, padding: 16, borderRadius: 16, alignItems: 'center' },
+    btnConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    btnRetry: {
+      padding: 14, borderRadius: 16, alignItems: 'center',
+      borderWidth: 1, borderColor: C.borderMed,
+    },
+    btnRetryText: { color: C.textTertiary, fontSize: 14, fontWeight: '600' },
+  });
+}

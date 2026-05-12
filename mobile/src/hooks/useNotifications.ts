@@ -82,45 +82,53 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
 
   const ids: string[] = [];
 
+  // Group medications by time slot so one notification covers all meds at that time
+  const timeMap = new Map<string, MedicationRecord[]>();
   for (const med of medications) {
     for (const time of med.times) {
-      const [hourStr, minuteStr] = time.split(':');
-      const hour = parseInt(hourStr, 10);
-      const minute = parseInt(minuteStr, 10);
-
-      // Primary reminder at scheduled time
-      const reminderId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Time to take ${med.name}`,
-          body: `${med.dose} · ${med.instructions}`,
-          data: { screen: 'MedReminder', medicationId: med.id, scheduledTime: time },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour,
-          minute,
-        },
-      });
-      ids.push(reminderId);
-
-      // Missed-dose nudge 30 minutes later
-      const nudgeMinute = (minute + 30) % 60;
-      const nudgeHour = minute + 30 >= 60 ? (hour + 1) % 24 : hour;
-
-      const nudgeId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `Did you take ${med.name}?`,
-          body: 'You have a dose that was due 30 minutes ago.',
-          data: { screen: 'MedReminder', medicationId: med.id, scheduledTime: time, isNudge: true },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: nudgeHour,
-          minute: nudgeMinute,
-        },
-      });
-      ids.push(nudgeId);
+      if (!timeMap.has(time)) timeMap.set(time, []);
+      timeMap.get(time)!.push(med);
     }
+  }
+
+  for (const [time, meds] of timeMap) {
+    const [hourStr, minuteStr] = time.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+
+    const medList = meds.map((m) => `${m.name} ${m.dose}`).join(' · ');
+
+    const reminderId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Time to take your medications',
+        body: medList,
+        data: { screen: 'MedReminder', scheduledTime: time },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
+      },
+    });
+    ids.push(reminderId);
+
+    // Missed-dose nudge 30 minutes later
+    const nudgeMinute = (minute + 30) % 60;
+    const nudgeHour = minute + 30 >= 60 ? (hour + 1) % 24 : hour;
+
+    const nudgeId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Did you take your medications?',
+        body: `${medList} — due 30 minutes ago.`,
+        data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: nudgeHour,
+        minute: nudgeMinute,
+      },
+    });
+    ids.push(nudgeId);
   }
 
   await AsyncStorage.setItem(MED_NOTIF_IDS_KEY, JSON.stringify(ids));

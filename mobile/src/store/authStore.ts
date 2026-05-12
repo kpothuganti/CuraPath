@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { refreshTokens } from '../api/auth';
 import { UserProfile } from '../types';
+
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 interface AuthState {
   user: UserProfile | null;
@@ -33,12 +34,18 @@ export const authStore = create<AuthState>((set, get) => ({
     const { refreshToken } = get();
     if (!refreshToken) return false;
     try {
-      const res = await refreshTokens(refreshToken);
+      const res = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const { data } = await res.json();
       await AsyncStorage.multiSet([
-        ['accessToken', res.data.accessToken],
-        ['refreshToken', res.data.refreshToken],
+        ['accessToken', data.accessToken],
+        ['refreshToken', data.refreshToken],
       ]);
-      set({ accessToken: res.data.accessToken, refreshToken: res.data.refreshToken });
+      set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
       return true;
     } catch {
       return false;

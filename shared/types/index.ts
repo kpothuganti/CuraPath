@@ -20,6 +20,8 @@ export interface DischargeJSON {
   follow_up_appointments: FollowUpAppointment[];
   diet_restrictions: string[];
   wound_care: string[];
+  sleeping_instructions: string[];
+  exercises: string[];
 }
 
 // ─── API Request / Response shapes ───────────────────────────────────────────
@@ -79,6 +81,8 @@ export interface AuthTokens {
 export interface UserProfile {
   id: string;
   email: string;
+  first_name: string | null;
+  last_name: string | null;
   timezone: string;
   created_at: string;
 }

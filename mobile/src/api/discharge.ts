@@ -3,7 +3,7 @@ import { DischargeJSON, DischargeRecord, ApiResponse } from '../types';
 
 export async function parseDischarge(
   type: 'photo' | 'pdf',
-  opts: { base64?: string; mediaType?: string; text?: string }
+  opts: { base64?: string; mediaType?: string; text?: string; language?: string }
 ): Promise<ApiResponse<DischargeJSON>> {
   return api.post('/discharge/parse', { type, ...opts });
 }
@@ -11,7 +11,7 @@ export async function parseDischarge(
 export async function uploadPhoto(
   base64: string,
   mediaType: string,
-  opts?: { discharge_date?: string; provider_phone?: string }
+  opts?: { discharge_date?: string; provider_phone?: string; language?: string }
 ): Promise<ApiResponse<DischargeRecord>> {
   return api.post('/discharge', {
     type: 'photo',
@@ -22,10 +22,10 @@ export async function uploadPhoto(
 }
 
 export async function uploadPDF(
-  text: string,
-  opts?: { discharge_date?: string; provider_phone?: string }
+  base64: string,
+  opts?: { discharge_date?: string; provider_phone?: string; language?: string }
 ): Promise<ApiResponse<DischargeRecord>> {
-  return api.post('/discharge', { type: 'pdf', text, ...opts });
+  return api.post('/discharge', { type: 'pdf', base64, ...opts });
 }
 
 export async function getLatestDischarge(): Promise<ApiResponse<DischargeRecord>> {
@@ -34,6 +34,12 @@ export async function getLatestDischarge(): Promise<ApiResponse<DischargeRecord>
 
 export async function getDischarge(id: string): Promise<ApiResponse<DischargeRecord>> {
   return api.get(`/discharge/${id}`);
+}
+
+export async function translateDischarge(
+  language: string
+): Promise<ApiResponse<DischargeRecord>> {
+  return api.post('/discharge/latest/translate', { language });
 }
 
 export async function updateProviderPhone(

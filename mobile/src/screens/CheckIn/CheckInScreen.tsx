@@ -1,13 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, ActivityIndicator,
-} from 'react-native';
+import React, { useMemo, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTodayCheckIn, submitCheckIn } from '../../api/checkin';
 import { dischargeStore } from '../../store/dischargeStore';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useTheme } from '../../hooks/useTheme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -25,6 +24,8 @@ export default function CheckInScreen() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const C = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
     getTodayCheckIn().then((res) => {
@@ -47,7 +48,6 @@ export default function CheckInScreen() {
       return;
     }
 
-    // All answered — submit
     setSubmitting(true);
     const responses = questions.map((q, i) => ({
       question: q.question,
@@ -73,7 +73,7 @@ export default function CheckInScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <ActivityIndicator color="#4f7eff" />
+        <ActivityIndicator color={C.accent} />
       </SafeAreaView>
     );
   }
@@ -125,31 +125,30 @@ export default function CheckInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#13131a', padding: 20 },
-  center: { alignItems: 'center', justifyContent: 'center' },
-  header: { marginBottom: 24 },
-  back: { color: '#4f7eff', fontSize: 13, marginBottom: 12 },
-  progressBar: { height: 4, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: '#4f7eff', borderRadius: 2 },
-  step: { color: '#555', fontSize: 12, marginTop: 8 },
-  questionCard: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 20, padding: 24, flex: 1,
-  },
-  qLabel: { color: '#4f7eff', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
-  question: { color: '#fff', fontSize: 20, fontWeight: '700', lineHeight: 28, letterSpacing: -0.3, flex: 1 },
-  answers: { gap: 10, marginTop: 24 },
-  answerBtn: {
-    padding: 16, borderRadius: 14,
-    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-  },
-  answerYes: { backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)' },
-  answerNo: { backgroundColor: 'rgba(52,211,153,0.1)', borderColor: 'rgba(52,211,153,0.3)' },
-  answerText: { fontSize: 15, fontWeight: '700' },
-  answerYesText: { color: '#ef4444' },
-  answerNoText: { color: '#34d399' },
-  disclaimer: { color: '#444', fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 20 },
-});
+function makeStyles(C: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    center: { alignItems: 'center', justifyContent: 'center' },
+    header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 0, marginBottom: 16 },
+    back: { color: C.accent, fontSize: 15, paddingVertical: 8, marginBottom: 12 },
+    progressBar: { height: 4, backgroundColor: C.trackBg, borderRadius: 2, overflow: 'hidden' },
+    progressFill: { height: '100%', backgroundColor: C.accent, borderRadius: 2 },
+    step: { color: C.textMuted, fontSize: 12, marginTop: 8 },
+    questionCard: {
+      backgroundColor: C.surface,
+      borderWidth: 1, borderColor: C.border,
+      borderRadius: 20, padding: 24, flex: 1,
+      marginHorizontal: 20,
+    },
+    qLabel: { color: C.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
+    question: { color: C.textPrimary, fontSize: 20, fontWeight: '700', lineHeight: 28, letterSpacing: -0.3, flex: 1 },
+    answers: { gap: 10, marginTop: 24 },
+    answerBtn: { padding: 16, borderRadius: 14, borderWidth: 1.5, alignItems: 'center' },
+    answerYes: { backgroundColor: C.dangerSurface, borderColor: C.dangerBorder },
+    answerNo: { backgroundColor: C.successSurface, borderColor: C.successBorder },
+    answerText: { fontSize: 15, fontWeight: '700' },
+    answerYesText: { color: C.danger },
+    answerNoText: { color: C.success },
+    disclaimer: { color: C.textMuted, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 20, marginHorizontal: 20, marginBottom: 12 },
+  });
+}

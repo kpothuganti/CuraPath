@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { parseDischargeInstructions } from '../services/claude';
+import { parseDischargeInstructions, translateDischargeJSON } from '../services/claude';
 import { extractTextFromPDF } from '../services/pdfExtract';
 
 const router = Router();
@@ -13,11 +13,12 @@ router.use(requireAuth);
 // POST /discharge/parse
 // Parse discharge instructions via Claude without saving — used for the review step
 router.post('/parse', async (req: AuthRequest, res: Response): Promise<void> => {
-  const { type, base64, mediaType, text } = req.body as {
+  const { type, base64, mediaType, text, language } = req.body as {
     type?: string;
     base64?: string;
     mediaType?: string;
     text?: string;
+    language?: string;
   };
 
   if (!type || (type === 'photo' && !base64) || (type === 'pdf' && !base64 && !text)) {
@@ -36,7 +37,7 @@ router.post('/parse', async (req: AuthRequest, res: Response): Promise<void> => 
       input = { type: 'text', content: pdfText };
     }
 
-    const parsedJson = await parseDischargeInstructions(input);
+    const parsedJson = await parseDischargeInstructions(input, language);
     res.json({ data: parsedJson });
   } catch (err: any) {
     console.error('Discharge parse error', err);
@@ -48,35 +49,39 @@ router.post('/parse', async (req: AuthRequest, res: Response): Promise<void> => 
 // Body: { type: 'photo' | 'pdf', base64?: string, mediaType?: string, text?: string,
 //         discharge_date?: string, provider_phone?: string }
 router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
-  const { type, base64, mediaType, text, discharge_date, provider_phone } = req.body as {
+  const { type, base64, mediaType, text, discharge_date, provider_phone, language } = req.body as {
     type?: string;
     base64?: string;
     mediaType?: string;
     text?: string;
     discharge_date?: string;
     provider_phone?: string;
+    language?: string;
   };
 
-  if (!type || (type === 'photo' && !base64) || (type === 'pdf' && !text)) {
-    res.status(400).json({ error: 'Invalid input: provide base64 for photo or text for pdf' });
+  if (!type || (type === 'photo' && !base64) || (type === 'pdf' && !base64 && !text)) {
+    res.status(400).json({ error: 'Invalid input: provide base64 for photo or pdf' });
     return;
   }
 
   try {
-    const input =
-      type === 'photo'
-        ? { type: 'image' as const, base64: base64!, mediaType: (mediaType ?? 'image/jpeg') as 'image/jpeg' }
-        : { type: 'text' as const, content: text! };
+    let input: Parameters<typeof parseDischargeInstructions>[0];
+    if (type === 'photo') {
+      input = { type: 'image' as const, base64: base64!, mediaType: (mediaType ?? 'image/jpeg') as 'image/jpeg' };
+    } else {
+      const pdfText = text ?? await extractTextFromPDF(base64!);
+      input = { type: 'text' as const, content: pdfText };
+    }
 
-    const parsedJson = await parseDischargeInstructions(input);
+    const parsedJson = await parseDischargeInstructions(input, language);
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       const dischargeResult = await client.query(
-        `INSERT INTO discharges (id, user_id, raw_input_type, parsed_json, discharge_date, provider_phone)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO discharges (id, user_id, raw_input_type, parsed_json, original_parsed_json, discharge_date, provider_phone)
+         VALUES ($1, $2, $3, $4, $4, $5, $6)
          RETURNING *`,
         [
           uuidv4(),
@@ -110,6 +115,44 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
   } catch (err) {
     console.error('Discharge parse error', err);
     res.status(500).json({ error: 'Failed to parse discharge instructions' });
+  }
+});
+
+// POST /discharge/latest/translate
+router.post('/latest/translate', async (req: AuthRequest, res: Response): Promise<void> => {
+  const { language } = req.body as { language?: string };
+  if (!language) {
+    res.status(400).json({ error: 'language is required' });
+    return;
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT * FROM discharges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [req.userId]
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'No discharge record found' });
+      return;
+    }
+
+    const discharge = result.rows[0];
+    // Always translate from the original English source; fall back to parsed_json for old records
+    const source = (discharge.original_parsed_json ?? discharge.parsed_json) as import('../types').DischargeJSON;
+
+    const translated = language === 'English'
+      ? source
+      : await translateDischargeJSON(source, language);
+
+    const updated = await pool.query(
+      `UPDATE discharges SET parsed_json = $1 WHERE id = $2 RETURNING *`,
+      [JSON.stringify(translated), discharge.id]
+    );
+
+    res.json({ data: updated.rows[0] });
+  } catch (err: any) {
+    console.error('Translate discharge error', err);
+    res.status(500).json({ error: err.message ?? 'Failed to translate' });
   }
 });
 

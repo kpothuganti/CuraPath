@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useTheme } from '../../hooks/useTheme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 
@@ -14,6 +16,8 @@ const BENEFITS = [
 
 export default function PermissionsScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
+  const C = useTheme();
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   async function handleEnable() {
     setLoading(true);
@@ -67,47 +71,36 @@ export default function PermissionsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#13131a' },
-  content: { flex: 1, padding: 28, justifyContent: 'center' },
-  iconWrap: {
-    width: 72, height: 72, borderRadius: 22,
-    backgroundColor: 'rgba(79,126,255,0.15)',
-    borderWidth: 1, borderColor: 'rgba(79,126,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-    alignSelf: 'center', marginBottom: 28,
-  },
-  icon: { fontSize: 34 },
-  title: {
-    fontSize: 24, fontWeight: '800', color: '#fff',
-    textAlign: 'center', letterSpacing: -0.5, marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 14, color: '#8a8a9a', textAlign: 'center',
-    lineHeight: 21, marginBottom: 32,
-  },
-  benefits: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
-    borderRadius: 16, padding: 16, gap: 14, marginBottom: 24,
-  },
-  benefitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
-  benefitIcon: { fontSize: 18, marginTop: 1 },
-  benefitText: { color: '#ccc', fontSize: 14, lineHeight: 20, flex: 1 },
-  disclaimer: {
-    backgroundColor: 'rgba(79,126,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(79,126,255,0.15)',
-    borderRadius: 12, padding: 12, marginBottom: 32,
-  },
-  disclaimerText: { color: '#6a8fd4', fontSize: 11, lineHeight: 16, textAlign: 'center' },
-  buttons: { gap: 10 },
-  btnPrimary: {
-    backgroundColor: '#4f7eff', padding: 16,
-    borderRadius: 16, alignItems: 'center',
-  },
-  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  btnSkip: {
-    padding: 14, borderRadius: 16, alignItems: 'center',
-  },
-  btnSkipText: { color: '#555', fontSize: 15, fontWeight: '600' },
-});
+function makeStyles(C: ReturnType<typeof useTheme>) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    content: { flex: 1, padding: 28, justifyContent: 'center' },
+    iconWrap: {
+      width: 72, height: 72, borderRadius: 22,
+      backgroundColor: C.accentSurface,
+      borderWidth: 1, borderColor: C.accentBorder,
+      alignItems: 'center', justifyContent: 'center',
+      alignSelf: 'center', marginBottom: 28,
+    },
+    icon: { fontSize: 34 },
+    title: { fontSize: 24, fontWeight: '800', color: C.textPrimary, textAlign: 'center', letterSpacing: -0.5, marginBottom: 12 },
+    subtitle: { fontSize: 14, color: C.textTertiary, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
+    benefits: {
+      backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+      borderRadius: 16, padding: 16, gap: 14, marginBottom: 24,
+    },
+    benefitRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+    benefitIcon: { fontSize: 18, marginTop: 1 },
+    benefitText: { color: C.textSecondary, fontSize: 14, lineHeight: 20, flex: 1 },
+    disclaimer: {
+      backgroundColor: C.surfaceAccent, borderWidth: 1, borderColor: C.borderAccent,
+      borderRadius: 12, padding: 12, marginBottom: 32,
+    },
+    disclaimerText: { color: C.accentSubtext, fontSize: 11, lineHeight: 16, textAlign: 'center' },
+    buttons: { gap: 10 },
+    btnPrimary: { backgroundColor: C.accent, padding: 16, borderRadius: 16, alignItems: 'center' },
+    btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    btnSkip: { padding: 14, borderRadius: 16, alignItems: 'center' },
+    btnSkipText: { color: C.textMuted, fontSize: 15, fontWeight: '600' },
+  });
+}
