@@ -63,13 +63,15 @@ Return ONLY valid JSON — no preamble, no markdown fences — matching this exa
   "diet_restrictions": string[],
   "wound_care": string[],
   "sleeping_instructions": string[],
-  "exercises": string[]
+  "exercises": string[],
+  "provider_phone": string | null
 }
 Rewrite all instructions at a 6th-grade reading level. If a field has no data, return an empty array.
 Times should be in "HH:MM" 24-hour format inferred from the frequency (e.g. twice daily → ["08:00","20:00"]).
 sleeping_instructions: any guidance about sleep position, pillows, or sleeping comfort.
 exercises: each exercise as a single string describing what to do (e.g. "Hand: make a tight fist, then straighten fingers — 5 reps, 5x daily").
 diet_restrictions: include any dietary guidance AND constipation/hydration tips related to medications.
+provider_phone: the doctor's, clinic's, or provider's phone number if present anywhere in the document (e.g. "555-867-5309"), otherwise null.
 IMPORTANT: If the image is too blurry, too dark, poorly lit, or otherwise illegible to reliably extract medical information, respond with ONLY this JSON and nothing else: {"parse_error":"illegible"}`;
 
 type ImageInput = {

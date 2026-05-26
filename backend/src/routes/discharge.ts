@@ -75,6 +75,10 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
 
     const parsedJson = await parseDischargeInstructions(input, language);
 
+    // Promote provider_phone out of parsed JSON into its own column, then strip it from the blob
+    const resolvedPhone = parsedJson.provider_phone ?? provider_phone ?? null;
+    delete parsedJson.provider_phone;
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -89,7 +93,7 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
           type,
           JSON.stringify(parsedJson),
           discharge_date ?? null,
-          provider_phone ?? null,
+          resolvedPhone,
         ]
       );
 

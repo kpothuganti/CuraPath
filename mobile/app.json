@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#13131a"
     },
     "plugins": [
       [
@@ -24,7 +24,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kspothuganti.recharge"
+      "bundleIdentifier": "com.kspothuganti.recharge",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ReCharge uses your camera to scan hospital discharge paperwork.",
+        "NSPhotoLibraryUsageDescription": "ReCharge accesses your photo library to upload a photo of your discharge paperwork.",
+        "NSUserNotificationsUsageDescription": "ReCharge sends medication reminders and daily check-in alerts to keep your recovery on track."
+      }
     },
     "android": {
       "adaptiveIcon": {

@@ -17,7 +17,7 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers, signal: AbortSignal.timeout(60000) });
 
   if (res.status === 401) {
     // Token expired — attempt refresh

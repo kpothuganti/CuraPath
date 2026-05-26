@@ -1,15 +1,20 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import pool from '../db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+const BCRYPT_ROUNDS = 12;
 
-function hashPassword(password: string): string {
-  // TODO: replace with bcrypt before production
-  return createHash('sha256').update(password + process.env.JWT_SECRET).digest('hex');
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 function signAccess(userId: string): string {
@@ -48,7 +53,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
       `INSERT INTO users (id, email, password_hash, first_name, last_name, timezone)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, email, first_name, last_name, timezone, created_at`,
-      [uuidv4(), email.toLowerCase(), hashPassword(password), firstName.trim(), lastName?.trim() ?? null, timezone ?? 'America/New_York']
+      [uuidv4(), email.toLowerCase(), await hashPassword(password), firstName.trim(), lastName?.trim() ?? null, timezone ?? 'America/New_York']
     );
 
     const user = result.rows[0];
@@ -88,7 +93,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
     );
 
     const user = result.rows[0];
-    if (!user || user.password_hash !== hashPassword(password)) {
+    if (!user || !await verifyPassword(password, user.password_hash)) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }

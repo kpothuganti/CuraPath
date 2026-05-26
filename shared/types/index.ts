@@ -22,6 +22,7 @@ export interface DischargeJSON {
   wound_care: string[];
   sleeping_instructions: string[];
   exercises: string[];
+  provider_phone?: string | null;
 }
 
 // ─── API Request / Response shapes ───────────────────────────────────────────
