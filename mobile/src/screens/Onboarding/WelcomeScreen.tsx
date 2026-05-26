@@ -18,7 +18,7 @@ export default function WelcomeScreen({ navigation }: Props) {
         <View style={styles.logoMark}>
           <Text style={styles.logoEmoji}>🏥</Text>
         </View>
-        <Text style={styles.title}>ReCharge</Text>
+        <Text style={styles.title}>CuraPath</Text>
         <Text style={[styles.title, { fontSize: 18, fontWeight: '500', marginTop: 4 }]}>Your recovery, made simple.</Text>
         <Text style={styles.subtitle}>
           Discharge turns your hospital paperwork into plain-English daily tasks, reminders, and

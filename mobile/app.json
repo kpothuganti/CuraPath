@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "ReCharge",
+    "name": "CuraPath",
     "slug": "recharge",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,6 +25,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kspothuganti.recharge",
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "ReCharge uses your camera to scan hospital discharge paperwork.",
         "NSPhotoLibraryUsageDescription": "ReCharge accesses your photo library to upload a photo of your discharge paperwork.",

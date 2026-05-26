@@ -103,6 +103,7 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
         title: 'Time to take your medications',
         body: medList,
         data: { screen: 'MedReminder', scheduledTime: time },
+        interruptionLevel: 'timeSensitive',
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -121,6 +122,7 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
         title: 'Did you take your medications?',
         body: `${medList} — due 30 minutes ago.`,
         data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
+        interruptionLevel: 'timeSensitive',
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

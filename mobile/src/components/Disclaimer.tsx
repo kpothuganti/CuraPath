@@ -6,7 +6,7 @@ export default function Disclaimer() {
   const C = useTheme();
   return (
     <Text style={[styles.text, { color: C.textMuted }]}>
-      ReCharge helps you track instructions from your healthcare provider. It does not provide
+      CuraPath helps you track instructions from your healthcare provider. It does not provide
       medical advice, diagnosis, or treatment recommendations. AI-extracted content may contain
       errors — always refer to your original discharge paperwork and contact your care team with
       any health concerns. In an emergency, call 911.

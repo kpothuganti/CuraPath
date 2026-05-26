@@ -39,7 +39,7 @@ export default function PermissionsScreen({ navigation }: Props) {
 
         <Text style={styles.title}>Stay on track with notifications</Text>
         <Text style={styles.subtitle}>
-          ReCharge uses notifications to keep your recovery on schedule. You can change this any
+          CuraPath uses notifications to keep your recovery on schedule. You can change this any
           time in Settings.
         </Text>
 

@@ -79,7 +79,7 @@ export default function HomeScreen() {
   if (!discharge) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <Text style={styles.emptyTitle}>Welcome to ReCharge</Text>
+        <Text style={styles.emptyTitle}>Welcome to CuraPath</Text>
         <Text style={styles.emptySub}>Upload your discharge paperwork to get started.</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('Upload')}>
           <Text style={styles.uploadBtnText}>Upload instructions</Text>
