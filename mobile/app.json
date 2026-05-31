@@ -29,9 +29,9 @@
         "com.apple.developer.usernotifications.time-sensitive": true
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "ReCharge uses your camera to scan hospital discharge paperwork.",
-        "NSPhotoLibraryUsageDescription": "ReCharge accesses your photo library to upload a photo of your discharge paperwork.",
-        "NSUserNotificationsUsageDescription": "ReCharge sends medication reminders and daily check-in alerts to keep your recovery on track.",
+        "NSCameraUsageDescription": "CuraPath uses your camera to scan hospital discharge paperwork.",
+        "NSPhotoLibraryUsageDescription": "CuraPath accesses your photo library to upload a photo of your discharge paperwork.",
+        "NSUserNotificationsUsageDescription": "CuraPath sends medication reminders and daily check-in alerts to keep your recovery on track.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
