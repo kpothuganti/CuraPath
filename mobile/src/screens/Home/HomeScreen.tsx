@@ -21,7 +21,8 @@ export default function HomeScreen() {
   const { user } = authStore();
   const [checkInDone, setCheckInDone] = useState(false);
   const [loading, setLoading] = useState(!discharge);
-  const [takenMedIds, setTakenMedIds] = useState<Set<string>>(new Set());
+  // keys are `${medicationId}_${time}` e.g. "abc123_08:00"
+  const [takenKeys, setTakenKeys] = useState<Set<string>>(new Set());
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
 
@@ -41,9 +42,14 @@ export default function HomeScreen() {
         const taken = new Set(
           logs.data
             .filter((l) => !l.skipped && l.taken_at && new Date(l.taken_at).toDateString() === todayStr)
-            .map((l) => l.medication_id)
+            .map((l) => {
+              const t = new Date(l.scheduled_time);
+              const hh = String(t.getHours()).padStart(2, '0');
+              const mm = String(t.getMinutes()).padStart(2, '0');
+              return `${l.medication_id}_${hh}:${mm}`;
+            })
         );
-        setTakenMedIds(taken);
+        setTakenKeys(taken);
         const ci = await getTodayCheckIn();
         setCheckInDone(ci.data.completed);
       } catch {
@@ -55,12 +61,12 @@ export default function HomeScreen() {
     load();
   }, []);
 
-  async function handleMedAction(med: MedicationRecord, action: 'taken' | 'skipped') {
+  async function handleMedAction(med: MedicationRecord, time: string, action: 'taken' | 'skipped') {
     const today = new Date();
-    const [h, m] = (med.times[0] ?? '08:00').split(':');
+    const [h, m] = time.split(':');
     today.setHours(Number(h), Number(m), 0, 0);
     await logMedication(med.id, today.toISOString(), action);
-    setTakenMedIds((prev) => new Set(prev).add(med.id));
+    setTakenKeys((prev) => new Set(prev).add(`${med.id}_${time}`));
   }
 
   const restrictions = discharge?.parsed_json?.activity_restrictions ?? [];
@@ -135,20 +141,26 @@ export default function HomeScreen() {
                 <View style={styles.medInfo}>
                   <Text style={styles.medName}>{med.name} {med.dose}</Text>
                   <Text style={styles.medDetail}>{med.instructions}</Text>
-                  <Text style={styles.medTime}>{med.times.join(' · ')}</Text>
-                </View>
-                {takenMedIds.has(med.id) ? (
-                  <View style={styles.medBtnTaken}>
-                    <Text style={styles.medBtnTakenText}>✓ Taken</Text>
+                  <View style={styles.medTimesRow}>
+                    {(med.times.length > 0 ? med.times : ['08:00']).map((time) => {
+                      const key = `${med.id}_${time}`;
+                      const taken = takenKeys.has(key);
+                      return taken ? (
+                        <View key={time} style={styles.medDoseTaken}>
+                          <Text style={styles.medDoseTakenText}>✓ {time}</Text>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          key={time}
+                          style={styles.medDoseBtn}
+                          onPress={() => handleMedAction(med, time, 'taken')}
+                        >
+                          <Text style={styles.medDoseBtnText}>Take {time}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.medBtn}
-                    onPress={() => handleMedAction(med, 'taken')}
-                  >
-                    <Text style={styles.medBtnText}>Take</Text>
-                  </TouchableOpacity>
-                )}
+                </View>
               </View>
             ))}
           </>
@@ -172,10 +184,6 @@ export default function HomeScreen() {
           <Disclaimer />
         </View>
       </ScrollView>
-
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Upload')}>
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -184,7 +192,7 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
     center: { alignItems: 'center', justifyContent: 'center', padding: 32 },
-    scroll: { paddingBottom: 120 },
+    scroll: { paddingBottom: 40 },
     header: { padding: 20, paddingBottom: 0 },
     greeting: { color: C.textTertiary, fontSize: 13, marginBottom: 2 },
     dayTitle: { color: C.textPrimary, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
@@ -229,10 +237,11 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     medName: { color: C.textPrimary, fontSize: 14, fontWeight: '700' },
     medDetail: { color: C.textTertiary, fontSize: 12, marginTop: 2 },
     medTime: { color: C.success, fontSize: 11, fontWeight: '600', marginTop: 4 },
-    medBtn: { backgroundColor: C.success, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-    medBtnText: { color: '#0d2b1e', fontSize: 12, fontWeight: '700' },
-    medBtnTaken: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, backgroundColor: C.successSurface, borderWidth: 1, borderColor: C.successBorder },
-    medBtnTakenText: { color: C.success, fontSize: 12, fontWeight: '700' },
+    medTimesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    medDoseBtn: { backgroundColor: C.success, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+    medDoseBtnText: { color: '#0d2b1e', fontSize: 12, fontWeight: '700' },
+    medDoseTaken: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: C.successSurface, borderWidth: 1, borderColor: C.successBorder },
+    medDoseTakenText: { color: C.success, fontSize: 12, fontWeight: '700' },
     taskCard: {
       marginHorizontal: 20, marginBottom: 8, padding: 14,
       backgroundColor: C.surface,
@@ -244,17 +253,12 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
       borderWidth: 2, borderColor: C.checkRing, marginTop: 1,
     },
     taskLabel: { color: C.textSecondary, fontSize: 14, lineHeight: 20, flex: 1 },
-    disclaimerWrap: { marginHorizontal: 20, marginTop: 24 },
+    updateBtn: { marginHorizontal: 20, marginTop: 24, backgroundColor: C.surfaceStrong, borderWidth: 1, borderColor: C.borderMed, borderRadius: 16, padding: 16, alignItems: 'center' },
+    updateBtnText: { color: C.textSecondary, fontSize: 15, fontWeight: '600' },
+    disclaimerWrap: { marginHorizontal: 20, marginTop: 8 },
     emptyTitle: { color: C.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
     emptySub: { color: C.textTertiary, fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },
     uploadBtn: { backgroundColor: C.accent, padding: 16, borderRadius: 16 },
     uploadBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-    fab: {
-      position: 'absolute', right: 20, bottom: 100,
-      width: 56, height: 56, borderRadius: 28,
-      backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
-      shadowColor: C.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 12,
-    },
-    fabText: { color: '#fff', fontSize: 28, fontWeight: '300', lineHeight: 30 },
   });
 }

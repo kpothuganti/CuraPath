@@ -1,15 +1,19 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { dischargeStore } from '../../store/dischargeStore';
 import Disclaimer from '../../components/Disclaimer';
 import { useTheme } from '../../hooks/useTheme';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 
 export default function InstructionsScreen() {
   const { discharge } = dischargeStore();
   const p = discharge?.parsed_json;
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   if (!p) {
     return (
@@ -111,6 +115,10 @@ export default function InstructionsScreen() {
           </Section>
         )}
 
+        <TouchableOpacity style={styles.updateBtn} onPress={() => navigation.navigate('Upload')}>
+          <Text style={styles.updateBtnText}>Update instructions</Text>
+        </TouchableOpacity>
+
         <View style={styles.disclaimerWrap}><Disclaimer /></View>
       </ScrollView>
     </SafeAreaView>
@@ -164,6 +172,8 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
       borderWidth: 1, borderColor: C.border, borderRadius: 12, marginBottom: 8,
     },
     exerciseText: { color: C.textSecondary, fontSize: 13, lineHeight: 18 },
-    disclaimerWrap: { margin: 20 },
+    updateBtn: { marginHorizontal: 20, marginTop: 24, backgroundColor: C.surfaceStrong, borderWidth: 1, borderColor: C.borderMed, borderRadius: 16, padding: 16, alignItems: 'center' },
+    updateBtnText: { color: C.textSecondary, fontSize: 15, fontWeight: '600' },
+    disclaimerWrap: { margin: 20, marginTop: 12 },
   });
 }
