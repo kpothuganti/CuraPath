@@ -18,7 +18,10 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://curapath-backend-env.eba-z3p226ga.us-east-2.elasticbeanstalk.com"
+      }
     }
   },
   "submit": {
