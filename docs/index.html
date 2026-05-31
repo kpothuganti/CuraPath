@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CuraPath — Your Recovery, Made Simple</title>
+  <meta name="description" content="CuraPath turns hospital discharge paperwork into clear daily tasks, medication reminders, and symptom check-ins — so patients can focus on getting better." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #4f7eff;
+      --accent-dark: #3a65e8;
+      --bg: #f7f8fc;
+      --surface: #ffffff;
+      --text-primary: #0f1117;
+      --text-secondary: #4a5468;
+      --text-muted: #8a95a8;
+      --border: #e4e8f0;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(247, 248, 252, 0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 1100px; margin: 0 auto;
+      width: 100%;
+    }
+    nav { max-width: 100%; }
+    .nav-inner {
+      max-width: 1100px; margin: 0 auto; width: 100%;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo { font-size: 17px; font-weight: 800; color: var(--text-primary); text-decoration: none; letter-spacing: -0.3px; }
+    .nav-logo span { color: var(--accent); }
+    .nav-cta {
+      background: var(--accent); color: #fff;
+      padding: 8px 18px; border-radius: 10px;
+      font-size: 14px; font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .nav-cta:hover { background: var(--accent-dark); }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1100px; margin: 0 auto;
+      padding: 96px 24px 80px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #eef2ff; color: var(--accent);
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+      text-transform: uppercase; margin-bottom: 20px;
+    }
+    .hero-badge::before { content: '●'; font-size: 8px; }
+    h1 {
+      font-size: 52px; font-weight: 800; line-height: 1.1;
+      letter-spacing: -1.5px; color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+    h1 span { color: var(--accent); }
+    .hero-sub {
+      font-size: 18px; color: var(--text-secondary); line-height: 1.7;
+      margin-bottom: 36px; max-width: 480px;
+    }
+    .hero-form { display: flex; gap: 10px; flex-wrap: wrap; }
+    .hero-form input {
+      flex: 1; min-width: 220px;
+      padding: 14px 16px; border-radius: 12px;
+      border: 1.5px solid var(--border);
+      font-size: 15px; font-family: inherit;
+      background: var(--surface); color: var(--text-primary);
+      outline: none; transition: border-color 0.15s;
+    }
+    .hero-form input:focus { border-color: var(--accent); }
+    .hero-form input::placeholder { color: var(--text-muted); }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      padding: 14px 24px; border-radius: 12px;
+      font-size: 15px; font-weight: 700; font-family: inherit;
+      border: none; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-primary:active { transform: scale(0.98); }
+    .hero-disclaimer { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
+
+    .hero-visual {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .phone-mockup {
+      width: 260px; height: 520px;
+      background: var(--surface);
+      border-radius: 40px;
+      border: 1.5px solid var(--border);
+      box-shadow: 0 32px 80px rgba(79, 126, 255, 0.12), 0 8px 24px rgba(0,0,0,0.06);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 10px; color: var(--text-muted); font-size: 13px; text-align: center;
+      padding: 32px;
+      position: relative; overflow: hidden;
+    }
+    .phone-mockup::before {
+      content: ''; position: absolute; top: 16px;
+      width: 80px; height: 5px; background: var(--border); border-radius: 3px;
+    }
+    .phone-screen-placeholder { font-size: 32px; margin-bottom: 8px; }
+
+    /* ── Stats ── */
+    .stats {
+      background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 40px 24px;
+    }
+    .stats-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 24px; text-align: center;
+    }
+    .stat-value { font-size: 36px; font-weight: 800; color: var(--accent); letter-spacing: -1px; }
+    .stat-label { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+
+    /* ── Problem ── */
+    .section {
+      max-width: 1100px; margin: 0 auto;
+      padding: 80px 24px;
+    }
+    .section-label {
+      font-size: 12px; font-weight: 700; color: var(--accent);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+    }
+    h2 {
+      font-size: 36px; font-weight: 800; letter-spacing: -0.8px;
+      line-height: 1.2; margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 17px; color: var(--text-secondary); line-height: 1.7;
+      max-width: 600px; margin-bottom: 48px;
+    }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+    }
+    .feature-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      background: #eef2ff; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 16px;
+    }
+    .feature-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── How it works ── */
+    .how-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px;
+      margin-top: 48px;
+    }
+    .step-number {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--accent); color: #fff;
+      font-size: 15px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
+    .step-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── Screenshot section ── */
+    .screenshots {
+      background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 80px 24px;
+    }
+    .screenshots-inner { max-width: 1100px; margin: 0 auto; }
+    .screenshots-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+      margin-top: 48px;
+    }
+    .screenshot-placeholder {
+      aspect-ratio: 9/19;
+      background: var(--bg); border: 1.5px dashed var(--border);
+      border-radius: 20px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; color: var(--text-muted); font-size: 12px; text-align: center; padding: 16px;
+    }
+    .screenshot-placeholder span { font-size: 24px; }
+
+    /* ── For providers ── */
+    .providers {
+      background: linear-gradient(135deg, #1a2a4a 0%, #0f1825 100%);
+      padding: 80px 24px;
+    }
+    .providers-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+    }
+    .providers h2 { color: #fff; }
+    .providers .section-label { color: #7fa8ff; }
+    .providers p { color: #9aafc8; font-size: 16px; line-height: 1.7; margin-bottom: 24px; }
+    .provider-points { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+    .provider-points li {
+      display: flex; align-items: flex-start; gap: 10px;
+      color: #c8d8f0; font-size: 15px;
+    }
+    .provider-points li::before { content: '✓'; color: #4f7eff; font-weight: 700; margin-top: 1px; }
+    .providers-visual {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 32px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .provider-stat {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 16px; background: rgba(255,255,255,0.06); border-radius: 12px;
+    }
+    .provider-stat-value { font-size: 28px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
+    .provider-stat-label { font-size: 13px; color: #7fa8ff; }
+
+    /* ── CTA ── */
+    .cta-section {
+      max-width: 700px; margin: 0 auto;
+      padding: 80px 24px; text-align: center;
+    }
+    .cta-section h2 { margin-bottom: 16px; }
+    .cta-section p { font-size: 17px; color: var(--text-secondary); margin-bottom: 36px; }
+    .cta-form { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .cta-form input {
+      flex: 1; min-width: 220px; max-width: 320px;
+      padding: 14px 16px; border-radius: 12px;
+      border: 1.5px solid var(--border);
+      font-size: 15px; font-family: inherit;
+      background: var(--surface); color: var(--text-primary);
+      outline: none; transition: border-color 0.15s;
+    }
+    .cta-form input:focus { border-color: var(--accent); }
+    .cta-form input::placeholder { color: var(--text-muted); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    .footer-logo { font-size: 15px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
+    .footer-logo span { color: var(--accent); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--text-secondary); }
+    .footer-copy { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      h1 { font-size: 36px; }
+      .hero { grid-template-columns: 1fr; padding: 60px 20px 48px; gap: 40px; }
+      .hero-visual { order: -1; }
+      .phone-mockup { width: 200px; height: 400px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .how-grid { grid-template-columns: 1fr; }
+      .stats-inner { grid-template-columns: 1fr; }
+      .screenshots-grid { grid-template-columns: repeat(2, 1fr); }
+      .providers-inner { grid-template-columns: 1fr; }
+      h2 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <div class="nav-inner">
+      <a class="nav-logo" href="#"><span>Cura</span>Path</a>
+      <a class="nav-cta" href="#early-access">Request Access</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div>
+      <div class="hero-badge">Now in Beta</div>
+      <h1>Your recovery,<br /><span>made simple.</span></h1>
+      <p class="hero-sub">
+        CuraPath uses AI to transform complex hospital discharge paperwork into clear daily tasks,
+        medication reminders, and symptom check-ins — so patients can focus on healing.
+      </p>
+      <form class="hero-form" id="hero-form">
+        <input type="email" placeholder="Enter your email" required id="hero-email" />
+        <button type="submit" class="btn-primary">Request Early Access</button>
+      </form>
+      <p class="hero-disclaimer">No spam. We'll reach out when your access is ready.</p>
+    </div>
+    <div class="hero-visual">
+      <div class="phone-mockup">
+        <div class="phone-screen-placeholder">📱</div>
+        <p>App screenshot<br/>coming soon</p>
+        <p style="font-size:11px; margin-top: 4px; color: #c0c8d8;">Home screen · Day 3 of Recovery</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stats-inner">
+      <div>
+        <div class="stat-value">1 in 5</div>
+        <div class="stat-label">Patients are readmitted within 30 days of discharge</div>
+      </div>
+      <div>
+        <div class="stat-value">50%</div>
+        <div class="stat-label">Of discharge instructions are forgotten within an hour</div>
+      </div>
+      <div>
+        <div class="stat-value">$26B</div>
+        <div class="stat-label">Annual cost of preventable hospital readmissions in the US</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section class="section">
+    <p class="section-label">Features</p>
+    <h2>Everything you need to<br />recover with confidence.</h2>
+    <p class="section-sub">
+      CuraPath takes the confusion out of going home from the hospital — turning dense medical
+      instructions into a simple, personalized recovery plan.
+    </p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-title">AI-Powered Parsing</div>
+        <div class="feature-desc">Upload a photo or PDF of your discharge paperwork. Our AI extracts medications, restrictions, follow-up appointments, and warning signs instantly.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💊</div>
+        <div class="feature-title">Medication Reminders</div>
+        <div class="feature-desc">Time-sensitive push notifications remind you to take each medication at the exact times listed on your discharge paperwork — even through Focus mode.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🩺</div>
+        <div class="feature-title">Daily Symptom Check-Ins</div>
+        <div class="feature-desc">Answer a quick daily check-in based on the red flags in your specific discharge instructions. Know when something needs attention.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <div class="feature-title">Activity Restrictions</div>
+        <div class="feature-desc">See your activity restrictions clearly laid out each day — no more hunting through paperwork to remember what you can and can't do.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📞</div>
+        <div class="feature-title">Provider Contact</div>
+        <div class="feature-desc">Your care team's phone number is automatically extracted and saved so you can reach them instantly if you have concerns.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <div class="feature-title">HIPAA Compliant</div>
+        <div class="feature-desc">Built on AWS with encryption at rest and in transit, signed BAA, and secure JWT authentication. Your health data stays yours.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section" style="padding-top: 0;">
+    <p class="section-label">How It Works</p>
+    <h2>From discharge paperwork<br />to a clear plan in seconds.</h2>
+    <div class="how-grid">
+      <div>
+        <div class="step-number">1</div>
+        <div class="step-title">Upload your paperwork</div>
+        <div class="step-desc">Take a photo of your discharge instructions or upload the PDF directly from your phone.</div>
+      </div>
+      <div>
+        <div class="step-number">2</div>
+        <div class="step-title">AI extracts your plan</div>
+        <div class="step-desc">CuraPath's AI reads your documents and builds a personalized recovery plan — medications, restrictions, check-in questions, and more.</div>
+      </div>
+      <div>
+        <div class="step-number">3</div>
+        <div class="step-title">Follow your recovery</div>
+        <div class="step-desc">Get daily reminders, log your medications, complete symptom check-ins, and track your progress day by day.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Screenshots -->
+  <div class="screenshots">
+    <div class="screenshots-inner">
+      <p class="section-label">The App</p>
+      <h2>Built for patients,<br />not paperwork.</h2>
+      <div class="screenshots-grid">
+        <div class="screenshot-placeholder">
+          <span>🏠</span>
+          <p>Home screen<br/>Day-of-recovery view</p>
+        </div>
+        <div class="screenshot-placeholder">
+          <span>📄</span>
+          <p>Upload screen<br/>Camera or PDF</p>
+        </div>
+        <div class="screenshot-placeholder">
+          <span>🩺</span>
+          <p>Daily check-in<br/>Symptom questions</p>
+        </div>
+        <div class="screenshot-placeholder">
+          <span>💊</span>
+          <p>Medication log<br/>Taken / skipped</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- For providers -->
+  <div class="providers">
+    <div class="providers-inner">
+      <div>
+        <p class="section-label">For Healthcare Providers</p>
+        <h2 style="color:#fff;">Reduce readmissions.<br />Improve outcomes.</h2>
+        <p>
+          CuraPath is designed to integrate with hospital discharge workflows, giving care teams
+          confidence that patients are following their instructions after they leave.
+        </p>
+        <ul class="provider-points">
+          <li>Structured adherence data from real patient recovery</li>
+          <li>Configurable check-in questions based on procedure type</li>
+          <li>Automatic red flag alerts when symptoms warrant follow-up</li>
+          <li>HIPAA-compliant infrastructure ready for enterprise deployment</li>
+        </ul>
+      </div>
+      <div class="providers-visual">
+        <div class="provider-stat">
+          <div class="provider-stat-value">30 days</div>
+          <div class="provider-stat-label">Recovery tracking window per discharge</div>
+        </div>
+        <div class="provider-stat">
+          <div class="provider-stat-value">~2 min</div>
+          <div class="provider-stat-label">Average daily check-in time for patients</div>
+        </div>
+        <div class="provider-stat">
+          <div class="provider-stat-value">Zero</div>
+          <div class="provider-stat-label">Changes required to existing EHR workflows</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <section class="cta-section" id="early-access">
+    <p class="section-label">Early Access</p>
+    <h2>Be among the first<br />to try CuraPath.</h2>
+    <p>We're onboarding early users now. Sign up and we'll reach out when your access is ready.</p>
+    <form class="cta-form" id="cta-form">
+      <input type="email" placeholder="Enter your email" required id="cta-email" />
+      <button type="submit" class="btn-primary">Request Access</button>
+    </form>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-logo"><span>Cura</span>Path</div>
+      <div class="footer-links">
+        <a href="privacy-policy.html">Privacy Policy</a>
+        <a href="mailto:kspothuganti@gmail.com">Contact</a>
+      </div>
+      <div class="footer-copy">© 2026 CuraPath. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <script>
+    function submitEmail(email) {
+      const url = 'https://docs.google.com/forms/d/e/1FAIpQLSfyFQ8DpY2KToJp1F0VdGxc9Qgm-SYYnp0AiMHfEzqol9xMLg/formResponse?entry.182712028=' + encodeURIComponent(email);
+      fetch(url, { method: 'POST', mode: 'no-cors' });
+    }
+
+    document.getElementById('hero-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const email = document.getElementById('hero-email').value;
+      submitEmail(email);
+      this.innerHTML = '<p style="color: #4f7eff; font-weight: 600; font-size: 15px;">✓ You\'re on the list! We\'ll be in touch.</p>';
+    });
+
+    document.getElementById('cta-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const email = document.getElementById('cta-email').value;
+      submitEmail(email);
+      this.innerHTML = '<p style="color: #4f7eff; font-weight: 600; font-size: 15px;">✓ You\'re on the list! We\'ll be in touch.</p>';
+    });
+  </script>
+
+</body>
+</html>
