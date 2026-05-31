@@ -20,7 +20,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://curapath-backend-env.eba-z3p226ga.us-east-2.elasticbeanstalk.com"
+        "EXPO_PUBLIC_API_URL": "https://api.curapath.app"
       }
     }
   },

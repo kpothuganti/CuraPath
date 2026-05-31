@@ -32,15 +32,7 @@
         "NSCameraUsageDescription": "ReCharge uses your camera to scan hospital discharge paperwork.",
         "NSPhotoLibraryUsageDescription": "ReCharge accesses your photo library to upload a photo of your discharge paperwork.",
         "NSUserNotificationsUsageDescription": "ReCharge sends medication reminders and daily check-in alerts to keep your recovery on track.",
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSAppTransportSecurity": {
-          "NSExceptionDomains": {
-            "curapath-backend-env.eba-z3p226ga.us-east-2.elasticbeanstalk.com": {
-              "NSExceptionAllowsInsecureHTTPLoads": true,
-              "NSIncludesSubdomains": true
-            }
-          }
-        }
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
