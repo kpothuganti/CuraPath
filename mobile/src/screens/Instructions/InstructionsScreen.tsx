@@ -161,11 +161,11 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     medName: { color: C.textPrimary, fontSize: 14, fontWeight: '700' },
     medDetail: { color: C.textTertiary, fontSize: 12, marginTop: 2 },
     apptRow: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      flexDirection: 'column', alignItems: 'flex-start',
       padding: 12, backgroundColor: C.surface,
-      borderWidth: 1, borderColor: C.border, borderRadius: 12, marginBottom: 8,
+      borderWidth: 1, borderColor: C.border, borderRadius: 12, marginBottom: 8, gap: 4,
     },
-    apptType: { color: C.textPrimary, fontSize: 14, fontWeight: '600' },
+    apptType: { color: C.textPrimary, fontSize: 14, fontWeight: '600', flexShrink: 1 },
     apptTime: { color: C.accent, fontSize: 12, fontWeight: '600' },
     exerciseRow: {
       padding: 12, backgroundColor: C.surface,
