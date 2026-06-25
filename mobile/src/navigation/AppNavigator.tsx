@@ -16,6 +16,7 @@ Notifications.setNotificationHandler({
 
 import { authStore } from '../store/authStore';
 import { useTheme } from '../hooks/useTheme';
+import { useUITranslations } from '../hooks/useUITranslations';
 
 // Auth screens
 import WelcomeScreen from '../screens/Onboarding/WelcomeScreen';
@@ -74,6 +75,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 
 function TabNavigator() {
   const C = useTheme();
+  const { t } = useUITranslations();
 
   return (
     <Tab.Navigator
@@ -89,10 +91,10 @@ function TabNavigator() {
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Instructions" component={InstructionsScreen} />
-      <Tab.Screen name="MedLog" component={MedLogScreen} options={{ tabBarLabel: 'Med Log' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: t('homeTab') }} />
+      <Tab.Screen name="Instructions" component={InstructionsScreen} options={{ tabBarLabel: t('instructionsTab') }} />
+      <Tab.Screen name="MedLog" component={MedLogScreen} options={{ tabBarLabel: t('medLogTab') }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: t('settingsTab') }} />
     </Tab.Navigator>
   );
 }

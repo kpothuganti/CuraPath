@@ -155,7 +155,7 @@ export async function translateDischargeJSON(
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-5',
-    max_tokens: 2048,
+    max_tokens: 8192,
     system: 'You are a precise medical translator. Return only valid JSON with no preamble or markdown fences.',
     messages: [{
       role: 'user',

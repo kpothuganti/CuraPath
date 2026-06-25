@@ -66,6 +66,11 @@ const UI_STRINGS: Record<string, string> = {
   legal: 'Legal',
   logOut: 'Log out',
   deleteAccount: 'Delete my account & data',
+  // Tab bar
+  homeTab: 'Home',
+  instructionsTab: 'Instructions',
+  medLogTab: 'Med Log',
+  settingsTab: 'Settings',
   // Notifications
   medReminderTitle: 'Time to take your medications',
   medNudgeTitle: 'Did you take your medications?',
