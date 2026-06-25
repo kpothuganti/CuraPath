@@ -1,10 +1,13 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomInt } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import pool from '../db';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+
+const ses = new SESClient({ region: process.env.AWS_REGION ?? 'us-east-2' });
 
 const router = Router();
 const BCRYPT_ROUNDS = 12;
@@ -156,6 +159,85 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     });
   } catch (err) {
     console.error('Refresh error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /auth/forgot-password
+router.post('/forgot-password', async (req: Request, res: Response): Promise<void> => {
+  const { email } = req.body as { email?: string };
+  if (!email) { res.status(400).json({ error: 'email is required' }); return; }
+
+  try {
+    const result = await pool.query(`SELECT id FROM users WHERE email = $1`, [email.toLowerCase()]);
+    // Always return success to prevent email enumeration
+    if (!result.rows[0]) { res.json({ data: { sent: true } }); return; }
+
+    const userId = result.rows[0].id;
+    const code = String(randomInt(100000, 999999));
+    const codeHash = createHash('sha256').update(code).digest('hex');
+
+    await pool.query(`DELETE FROM password_reset_tokens WHERE user_id = $1`, [userId]);
+    await pool.query(
+      `INSERT INTO password_reset_tokens (id, user_id, code_hash, expires_at)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes')`,
+      [uuidv4(), userId, codeHash]
+    );
+
+    await ses.send(new SendEmailCommand({
+      Source: 'noreply@curapath.app',
+      Destination: { ToAddresses: [email] },
+      Message: {
+        Subject: { Data: 'Your CuraPath password reset code' },
+        Body: {
+          Text: {
+            Data: `Your CuraPath password reset code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you didn't request this, you can ignore this email.`,
+          },
+        },
+      },
+    }));
+
+    res.json({ data: { sent: true } });
+  } catch (err) {
+    console.error('Forgot password error', err);
+    res.json({ data: { sent: true } }); // Always succeed to client
+  }
+});
+
+// POST /auth/reset-password
+router.post('/reset-password', async (req: Request, res: Response): Promise<void> => {
+  const { email, code, newPassword } = req.body as { email?: string; code?: string; newPassword?: string };
+  if (!email || !code || !newPassword) {
+    res.status(400).json({ error: 'email, code, and newPassword are required' });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: 'Password must be at least 8 characters' });
+    return;
+  }
+
+  try {
+    const userResult = await pool.query(`SELECT id FROM users WHERE email = $1`, [email.toLowerCase()]);
+    if (!userResult.rows[0]) { res.status(400).json({ error: 'Invalid code' }); return; }
+
+    const userId = userResult.rows[0].id;
+    const codeHash = createHash('sha256').update(code).digest('hex');
+
+    const tokenResult = await pool.query(
+      `SELECT id FROM password_reset_tokens
+       WHERE user_id = $1 AND code_hash = $2 AND expires_at > NOW() AND used = false`,
+      [userId, codeHash]
+    );
+
+    if (!tokenResult.rows[0]) { res.status(400).json({ error: 'Invalid or expired code' }); return; }
+
+    await pool.query(`UPDATE password_reset_tokens SET used = true WHERE id = $1`, [tokenResult.rows[0].id]);
+    await pool.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [await hashPassword(newPassword), userId]);
+    await pool.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [userId]);
+
+    res.json({ data: { reset: true } });
+  } catch (err) {
+    console.error('Reset password error', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -29,6 +29,14 @@ export async function refreshTokens(refreshToken: string): Promise<ApiResponse<A
   return res.json();
 }
 
+export async function forgotPassword(email: string): Promise<ApiResponse<{ sent: boolean }>> {
+  return api.post('/auth/forgot-password', { email });
+}
+
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<ApiResponse<{ reset: boolean }>> {
+  return api.post('/auth/reset-password', { email, code, newPassword });
+}
+
 export async function deleteAccount(): Promise<ApiResponse<{ deleted: boolean }>> {
   return api.delete('/auth/account');
 }

@@ -69,6 +69,23 @@ CREATE TABLE IF NOT EXISTS medication_logs (
 CREATE INDEX IF NOT EXISTS med_logs_user_id_idx ON medication_logs(user_id);
 CREATE INDEX IF NOT EXISTS med_logs_medication_id_idx ON medication_logs(medication_id);
 
+-- ─── UI translations cache ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ui_translations (
+  language_code  TEXT PRIMARY KEY,
+  strings_json   JSONB NOT NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Password reset OTPs ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash   TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used        BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ─── Refresh tokens ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

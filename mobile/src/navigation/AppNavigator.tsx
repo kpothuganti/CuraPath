@@ -21,6 +21,7 @@ import { useTheme } from '../hooks/useTheme';
 import WelcomeScreen from '../screens/Onboarding/WelcomeScreen';
 import RegisterScreen from '../screens/Onboarding/RegisterScreen';
 import LoginScreen from '../screens/Onboarding/LoginScreen';
+import ForgotPasswordScreen from '../screens/Onboarding/ForgotPasswordScreen';
 import PermissionsScreen from '../screens/Onboarding/PermissionsScreen';
 import ReviewScreen from '../screens/Review/ReviewScreen';
 
@@ -39,6 +40,7 @@ export type RootStackParamList = {
   Welcome: undefined;
   Register: undefined;
   Login: undefined;
+  ForgotPassword: undefined;
   Permissions: undefined;
   // App modals
   Upload: undefined;
@@ -140,6 +142,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         )}
       </Stack.Navigator>

@@ -12,6 +12,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { MedicationRecord } from '../../types';
 import Disclaimer from '../../components/Disclaimer';
 import { useTheme } from '../../hooks/useTheme';
+import { useUITranslations } from '../../hooks/useUITranslations';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -25,6 +26,7 @@ export default function HomeScreen() {
   const [takenKeys, setTakenKeys] = useState<Set<string>>(new Set());
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const { t, greeting } = useUITranslations();
 
   const firstName = user?.first_name ?? user?.email.split('@')[0] ?? 'there';
 
@@ -85,10 +87,10 @@ export default function HomeScreen() {
   if (!discharge) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
-        <Text style={styles.emptyTitle}>Welcome to CuraPath</Text>
-        <Text style={styles.emptySub}>Upload your discharge paperwork to get started.</Text>
+        <Text style={styles.emptyTitle}>{t('welcomeTitle')}</Text>
+        <Text style={styles.emptySub}>{t('uploadPrompt')}</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('Upload')}>
-          <Text style={styles.uploadBtnText}>Upload instructions</Text>
+          <Text style={styles.uploadBtnText}>{t('uploadBtn')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -98,31 +100,31 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.greeting}>Good Morning, {firstName}</Text>
-          <Text style={styles.dayTitle}>Day {daysSince + 1} of Recovery</Text>
+          <Text style={styles.greeting}>{greeting}, {firstName}</Text>
+          <Text style={styles.dayTitle}>{t('dayOfRecovery', { n: daysSince + 1 })}</Text>
         </View>
 
         <View style={styles.progressCard}>
-          <Text style={styles.progressLabel}>Recovery Progress</Text>
+          <Text style={styles.progressLabel}>{t('recoveryProgress')}</Text>
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${Math.min((daysSince / 30) * 100, 100)}%` }]} />
           </View>
           <Text style={styles.progressDays}>
-            {daysSince} of 30 days · {Math.max(30 - daysSince, 0)} days remaining
+            {t('daysProgress', { done: daysSince, remaining: Math.max(30 - daysSince, 0) })}
           </Text>
         </View>
 
         {!checkInDone && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Daily Check-In</Text>
+              <Text style={styles.sectionTitle}>{t('dailyCheckIn')}</Text>
             </View>
             <TouchableOpacity style={styles.checkinCard} onPress={() => navigation.navigate('CheckIn')}>
               <View style={styles.checkinIcon}><Text style={{ fontSize: 22 }}>🩺</Text></View>
               <View style={styles.checkinText}>
-                <Text style={styles.checkinLabel}>How are you feeling today?</Text>
+                <Text style={styles.checkinLabel}>{t('howAreYouFeeling')}</Text>
                 <Text style={styles.checkinSub}>
-                  {discharge.parsed_json.red_flags.length} questions · takes 1 minute
+                  {t('questionsCount', { n: discharge.parsed_json.red_flags.length })}
                 </Text>
               </View>
               <Text style={{ color: C.accent, fontSize: 18 }}>›</Text>
@@ -133,43 +135,46 @@ export default function HomeScreen() {
         {medications.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today's Medications</Text>
+              <Text style={styles.sectionTitle}>{t('todaysMedications')}</Text>
             </View>
-            {medications.map((med) => (
-              <View key={med.id} style={styles.medCard}>
-                <View style={styles.medIcon}><Text style={{ fontSize: 20 }}>💊</Text></View>
-                <View style={styles.medInfo}>
-                  <Text style={styles.medName}>{med.name} {med.dose}</Text>
-                  <Text style={styles.medDetail}>{med.instructions}</Text>
-                  <View style={styles.medTimesRow}>
-                    {(med.times.length > 0 ? med.times : ['08:00']).map((time) => {
-                      const key = `${med.id}_${time}`;
-                      const taken = takenKeys.has(key);
-                      return taken ? (
-                        <View key={time} style={styles.medDoseTaken}>
-                          <Text style={styles.medDoseTakenText}>✓ {time}</Text>
-                        </View>
-                      ) : (
-                        <TouchableOpacity
-                          key={time}
-                          style={styles.medDoseBtn}
-                          onPress={() => handleMedAction(med, time, 'taken')}
-                        >
-                          <Text style={styles.medDoseBtnText}>Take {time}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
+            {medications.map((med, medIndex) => {
+              const translatedInstructions = discharge.parsed_json.medications?.[medIndex]?.instructions ?? med.instructions;
+              return (
+                <View key={med.id} style={styles.medCard}>
+                  <View style={styles.medIcon}><Text style={{ fontSize: 20 }}>💊</Text></View>
+                  <View style={styles.medInfo}>
+                    <Text style={styles.medName}>{med.name} {med.dose}</Text>
+                    <Text style={styles.medDetail}>{translatedInstructions}</Text>
+                    <View style={styles.medTimesRow}>
+                      {(med.times.length > 0 ? med.times : ['08:00']).map((time) => {
+                        const key = `${med.id}_${time}`;
+                        const taken = takenKeys.has(key);
+                        return taken ? (
+                          <View key={time} style={styles.medDoseTaken}>
+                            <Text style={styles.medDoseTakenText}>✓ {time}</Text>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            key={time}
+                            style={styles.medDoseBtn}
+                            onPress={() => handleMedAction(med, time, 'taken')}
+                          >
+                            <Text style={styles.medDoseBtnText}>{t('take')} {time}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </>
         )}
 
         {restrictions.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Activity Reminders</Text>
+              <Text style={styles.sectionTitle}>{t('activityReminders')}</Text>
             </View>
             {restrictions.map((r, i) => (
               <View key={i} style={styles.taskCard}>

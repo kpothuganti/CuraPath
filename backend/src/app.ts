@@ -6,6 +6,7 @@ import authRoutes from './routes/auth';
 import dischargeRoutes from './routes/discharge';
 import checkinRoutes from './routes/checkin';
 import medicationRoutes from './routes/medications';
+import translationsRoutes from './routes/translations';
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/auth', authRoutes);
 app.use('/discharge', dischargeRoutes);
 app.use('/checkin', checkinRoutes);
 app.use('/medications', medicationRoutes);
+app.use('/translations', translationsRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -1,21 +1,34 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { login } from '../../api/auth';
 import { authStore } from '../../store/authStore';
 import { useTheme } from '../../hooks/useTheme';
 
+const REMEMBERED_EMAIL_KEY = 'remembered_email';
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const { setAuth } = authStore();
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(REMEMBERED_EMAIL_KEY).then((saved) => {
+      if (saved) {
+        setEmail(saved);
+        setRememberMe(true);
+      }
+    });
+  }, []);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -29,6 +42,11 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const res = await login(email.trim(), password);
+      if (rememberMe) {
+        await AsyncStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim());
+      } else {
+        await AsyncStorage.removeItem(REMEMBERED_EMAIL_KEY);
+      }
       await setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
     } catch (err: any) {
       const msg = err.message ?? '';
@@ -68,8 +86,19 @@ export default function LoginScreen({ navigation }: Props) {
           secureTextEntry
         />
 
+        <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe((v) => !v)}>
+          <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+            {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+          <Text style={styles.rememberLabel}>Remember me</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Log in</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.forgotBtn} onPress={() => navigation.navigate('ForgotPassword')}>
+          <Text style={styles.forgotText}>Forgot password?</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -88,7 +117,19 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
       borderColor: C.borderMed, borderRadius: 14,
       padding: 16, color: C.textPrimary, fontSize: 15, marginBottom: 12,
     },
-    btn: { backgroundColor: C.accent, padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 8 },
+    rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, marginTop: 4 },
+    checkbox: {
+      width: 22, height: 22, borderRadius: 6,
+      borderWidth: 2, borderColor: C.borderMed,
+      backgroundColor: C.surfaceStrong,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    checkboxChecked: { backgroundColor: C.accent, borderColor: C.accent },
+    checkmark: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    rememberLabel: { color: C.textSecondary, fontSize: 14 },
+    btn: { backgroundColor: C.accent, padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 4 },
     btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    forgotBtn: { alignItems: 'center', marginTop: 16 },
+    forgotText: { color: C.accent, fontSize: 14, fontWeight: '500' },
   });
 }

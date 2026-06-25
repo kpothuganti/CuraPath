@@ -9,6 +9,8 @@ import {
   getCheckInNotifSettings,
   saveCheckInNotifSettings,
   CheckInNotifSettings,
+  getMedNotifEnabled,
+  setMedNotifEnabled,
 } from '../../hooks/useNotifications';
 import {
   getPreferredLanguage,
@@ -17,21 +19,26 @@ import {
   Language,
 } from '../../hooks/useLanguage';
 import { useTheme } from '../../hooks/useTheme';
+import { useUITranslations, clearUITranslationCache } from '../../hooks/useUITranslations';
+import { scheduleMedReminders, scheduleCheckInReminder } from '../../hooks/useNotifications';
 
 
 export default function SettingsScreen() {
   const { user, logout } = authStore();
-  const { discharge, clear, setDischarge } = dischargeStore();
+  const { discharge, medications, clear, setDischarge } = dischargeStore();
   const [settings, setSettings] = useState<CheckInNotifSettings>({ enabled: true, hour: 8, minute: 0 });
+  const [medNotifsEnabled, setMedNotifsEnabled] = useState(true);
   const [providerPhone, setProviderPhone] = useState(discharge?.provider_phone ?? '');
   const [language, setLanguage] = useState<Language>(SUPPORTED_LANGUAGES[0]);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [translating, setTranslating] = useState(false);
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
+  const { t } = useUITranslations();
 
   useEffect(() => {
     getCheckInNotifSettings().then(setSettings);
+    getMedNotifEnabled().then(setMedNotifsEnabled);
     getPreferredLanguage().then(setLanguage);
   }, []);
 
@@ -93,22 +100,22 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>{t('settings')}</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Account</Text>
+        <Text style={styles.sectionLabel}>{t('account')}</Text>
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>Email</Text>
+          <Text style={styles.rowLabel}>{t('email')}</Text>
           <Text style={styles.rowValue}>{user?.email}</Text>
         </View>
       </View>
 
       {discharge && (
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Care team</Text>
+          <Text style={styles.sectionLabel}>{t('careTeam')}</Text>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Provider phone</Text>
+            <Text style={styles.rowLabel}>{t('providerPhone')}</Text>
             <TextInput
               style={styles.phoneInput}
               value={providerPhone}
@@ -127,9 +134,21 @@ export default function SettingsScreen() {
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Notifications</Text>
+        <Text style={styles.sectionLabel}>{t('notifications')}</Text>
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>Daily check-in reminder</Text>
+          <Text style={styles.rowLabel}>{t('medicationReminders')}</Text>
+          <Switch
+            value={medNotifsEnabled}
+            onValueChange={async (val) => {
+              setMedNotifsEnabled(val);
+              await setMedNotifEnabled(val, medications);
+            }}
+            trackColor={{ true: C.accent }}
+            thumbColor="#fff"
+          />
+        </View>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>{t('dailyCheckInReminder')}</Text>
           <Switch
             value={settings.enabled}
             onValueChange={(val) => updateSettings({ enabled: val })}
@@ -139,7 +158,7 @@ export default function SettingsScreen() {
         </View>
         {settings.enabled && (
           <View style={[styles.row, { flexDirection: 'column', alignItems: 'flex-start', gap: 10 }]}>
-            <Text style={styles.rowLabel}>Reminder time</Text>
+            <Text style={styles.rowLabel}>{t('reminderTime')}</Text>
             <View style={styles.timePicker}>
               <View style={styles.timeUnit}>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(1)}>
@@ -175,9 +194,9 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Language</Text>
+        <Text style={styles.sectionLabel}>{t('language')}</Text>
         <TouchableOpacity style={styles.row} onPress={() => setLangModalVisible(true)}>
-          <Text style={styles.rowLabel}>Instructions language</Text>
+          <Text style={styles.rowLabel}>{t('instructionsLanguage')}</Text>
           <View style={styles.langValue}>
             {translating
               ? <ActivityIndicator size="small" color={C.accent} />
@@ -192,7 +211,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Legal</Text>
+        <Text style={styles.sectionLabel}>{t('legal')}</Text>
         <View style={styles.row}>
           <Text style={styles.disclaimer}>
             This app helps you follow instructions from your doctor. It does not provide medical
@@ -203,10 +222,10 @@ export default function SettingsScreen() {
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Log out</Text>
+          <Text style={styles.logoutText}>{t('logOut')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-          <Text style={styles.deleteText}>Delete my account & data</Text>
+          <Text style={styles.deleteText}>{t('deleteAccount')}</Text>
         </TouchableOpacity>
       </View>
       </ScrollView>
@@ -230,11 +249,15 @@ export default function SettingsScreen() {
                     setLangModalVisible(false);
                     setLanguage(item);
                     await setPreferredLanguage(item);
+                    await clearUITranslationCache();
                     if (discharge) {
                       setTranslating(true);
                       try {
                         const res = await translateDischarge(item.name);
                         setDischarge(res.data);
+                        // Reschedule notifications in new language
+                        await scheduleMedReminders(medications);
+                        await scheduleCheckInReminder(settings.hour, settings.minute);
                       } catch {
                         Alert.alert('Translation failed', 'Could not translate your instructions. Please try again.');
                       } finally {

@@ -1,15 +1,14 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
+import { useUITranslations } from '../hooks/useUITranslations';
 
 export default function Disclaimer() {
   const C = useTheme();
+  const { t } = useUITranslations();
   return (
     <Text style={[styles.text, { color: C.textMuted }]}>
-      CuraPath helps you track instructions from your healthcare provider. It does not provide
-      medical advice, diagnosis, or treatment recommendations. AI-extracted content may contain
-      errors — always refer to your original discharge paperwork and contact your care team with
-      any health concerns. In an emergency, call 911.
+      {t('disclaimer')}
     </Text>
   );
 }

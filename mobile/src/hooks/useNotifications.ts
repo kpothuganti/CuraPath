@@ -1,11 +1,44 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MedicationRecord } from '../types';
+import { getPreferredLanguage } from './useLanguage';
+
+async function getNotifStrings(): Promise<{ medTitle: string; medNudgeTitle: string; medNudgeSuffix: string; checkInTitle: string; checkInBody: string }> {
+  const lang = await getPreferredLanguage();
+  if (lang.code === 'en') {
+    return {
+      medTitle: 'Time to take your medications',
+      medNudgeTitle: 'Did you take your medications?',
+      medNudgeSuffix: '— due 30 minutes ago.',
+      checkInTitle: 'Morning check-in',
+      checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
+    };
+  }
+  const cached = await AsyncStorage.getItem(`ui_translations_${lang.code}`);
+  if (cached) {
+    const s = JSON.parse(cached);
+    return {
+      medTitle: s.medReminderTitle ?? 'Time to take your medications',
+      medNudgeTitle: s.medNudgeTitle ?? 'Did you take your medications?',
+      medNudgeSuffix: s.medNudgeSuffix ?? '— due 30 minutes ago.',
+      checkInTitle: s.checkInNotifTitle ?? 'Morning check-in',
+      checkInBody: s.checkInNotifBody ?? 'How are you feeling today? Tap to complete your daily symptom check.',
+    };
+  }
+  return {
+    medTitle: 'Time to take your medications',
+    medNudgeTitle: 'Did you take your medications?',
+    medNudgeSuffix: '— due 30 minutes ago.',
+    checkInTitle: 'Morning check-in',
+    checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
+  };
+}
 
 const NOTIF_ID_KEY = 'checkin_notif_id';
 const NOTIF_TIME_KEY = 'checkin_time';
 const NOTIF_ENABLED_KEY = 'checkin_enabled';
 const MED_NOTIF_IDS_KEY = 'med_notif_ids';
+const MED_NOTIF_ENABLED_KEY = 'med_notif_enabled';
 
 export interface CheckInNotifSettings {
   enabled: boolean;
@@ -33,10 +66,12 @@ export async function scheduleCheckInReminder(hour: number, minute: number): Pro
     : await Notifications.requestPermissionsAsync();
   if (status !== 'granted') return;
 
+  const strings = await getNotifStrings();
+
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Morning check-in',
-      body: 'How are you feeling today? Tap to complete your daily symptom check.',
+      title: strings.checkInTitle,
+      body: strings.checkInBody,
       data: { screen: 'CheckIn' },
     },
     trigger: {
@@ -71,6 +106,20 @@ export async function saveCheckInNotifSettings(settings: CheckInNotifSettings): 
 
 // ─── Medication reminders ─────────────────────────────────────────────────────
 
+export async function getMedNotifEnabled(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(MED_NOTIF_ENABLED_KEY);
+  return val !== 'false';
+}
+
+export async function setMedNotifEnabled(enabled: boolean, medications: MedicationRecord[]): Promise<void> {
+  await AsyncStorage.setItem(MED_NOTIF_ENABLED_KEY, String(enabled));
+  if (enabled) {
+    await scheduleMedReminders(medications);
+  } else {
+    await cancelAllMedReminders();
+  }
+}
+
 export async function scheduleMedReminders(medications: MedicationRecord[]): Promise<void> {
   await cancelAllMedReminders();
 
@@ -80,9 +129,9 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
     : await Notifications.requestPermissionsAsync();
   if (status !== 'granted') return;
 
+  const strings = await getNotifStrings();
   const ids: string[] = [];
 
-  // Group medications by time slot so one notification covers all meds at that time
   const timeMap = new Map<string, MedicationRecord[]>();
   for (const med of medications) {
     for (const time of med.times) {
@@ -100,7 +149,7 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
 
     const reminderId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Time to take your medications',
+        title: strings.medTitle,
         body: medList,
         data: { screen: 'MedReminder', scheduledTime: time },
         interruptionLevel: 'timeSensitive',
@@ -113,14 +162,13 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
     });
     ids.push(reminderId);
 
-    // Missed-dose nudge 30 minutes later
     const nudgeMinute = (minute + 30) % 60;
     const nudgeHour = minute + 30 >= 60 ? (hour + 1) % 24 : hour;
 
     const nudgeId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Did you take your medications?',
-        body: `${medList} — due 30 minutes ago.`,
+        title: strings.medNudgeTitle,
+        body: `${medList} ${strings.medNudgeSuffix}`,
         data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
         interruptionLevel: 'timeSensitive',
       },
