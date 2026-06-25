@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../api/client';
 import { getPreferredLanguage, SUPPORTED_LANGUAGES } from './useLanguage';
+import { translationsStore } from '../store/translationsStore';
 
 export type UIStrings = Record<string, string>;
 
@@ -92,7 +93,8 @@ function t(strings: UIStrings, key: string, vars?: Record<string, string | numbe
 }
 
 export function useUITranslations() {
-  const [strings, setStrings] = useState<UIStrings>(EN_FALLBACK);
+  const { strings: storeStrings, setStrings, languageVersion } = translationsStore();
+  const strings = storeStrings ?? EN_FALLBACK;
 
   useEffect(() => {
     async function load() {
@@ -115,7 +117,7 @@ export function useUITranslations() {
       }
     }
     load();
-  }, []);
+  }, [languageVersion]);
 
   return {
     strings,

@@ -21,6 +21,7 @@ import {
 import { useTheme } from '../../hooks/useTheme';
 import { useUITranslations, clearUITranslationCache } from '../../hooks/useUITranslations';
 import { scheduleMedReminders, scheduleCheckInReminder } from '../../hooks/useNotifications';
+import { translationsStore } from '../../store/translationsStore';
 
 
 export default function SettingsScreen() {
@@ -250,6 +251,7 @@ export default function SettingsScreen() {
                     setLanguage(item);
                     await setPreferredLanguage(item);
                     await clearUITranslationCache();
+                    translationsStore.getState().bumpVersion();
                     if (discharge) {
                       setTranslating(true);
                       try {
