@@ -3,38 +3,53 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MedicationRecord } from '../types';
 import { getPreferredLanguage } from './useLanguage';
 
-async function getNotifStrings(): Promise<{ medTitle: string; medNudgeTitle: string; medNudgeSuffix: string; checkInTitle: string; checkInBody: string }> {
-  const lang = await getPreferredLanguage();
-  if (lang.code === 'en') {
-    return {
-      medTitle: 'Time to take your medications',
-      medNudgeTitle: 'Did you take your medications?',
-      medNudgeSuffix: '— due 30 minutes ago.',
-      checkInTitle: 'Morning check-in',
-      checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
-    };
-  }
-  const cached = await AsyncStorage.getItem(`ui_translations_${lang.code}`);
-  if (cached) {
-    const s = JSON.parse(cached);
-    return {
-      medTitle: s.medReminderTitle ?? 'Time to take your medications',
-      medNudgeTitle: s.medNudgeTitle ?? 'Did you take your medications?',
-      medNudgeSuffix: s.medNudgeSuffix ?? '— due 30 minutes ago.',
-      checkInTitle: s.checkInNotifTitle ?? 'Morning check-in',
-      checkInBody: s.checkInNotifBody ?? 'How are you feeling today? Tap to complete your daily symptom check.',
-    };
-  }
+const EN_NOTIF_STRINGS = {
+  medTitle: 'Time to take your medications',
+  medNudgeTitle: 'Did you take your medications?',
+  medNudgeSuffix: '— due 30 minutes ago.',
+  checkInTitle: 'Morning check-in',
+  checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
+};
+
+function extractNotifStrings(s: Record<string, string>) {
   return {
-    medTitle: 'Time to take your medications',
-    medNudgeTitle: 'Did you take your medications?',
-    medNudgeSuffix: '— due 30 minutes ago.',
-    checkInTitle: 'Morning check-in',
-    checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
+    medTitle: s.medReminderTitle ?? EN_NOTIF_STRINGS.medTitle,
+    medNudgeTitle: s.medNudgeTitle ?? EN_NOTIF_STRINGS.medNudgeTitle,
+    medNudgeSuffix: s.medNudgeSuffix ?? EN_NOTIF_STRINGS.medNudgeSuffix,
+    checkInTitle: s.checkInNotifTitle ?? EN_NOTIF_STRINGS.checkInTitle,
+    checkInBody: s.checkInNotifBody ?? EN_NOTIF_STRINGS.checkInBody,
   };
 }
 
-const NOTIF_ID_KEY = 'checkin_notif_id';
+async function getNotifStrings(): Promise<typeof EN_NOTIF_STRINGS> {
+  const lang = await getPreferredLanguage();
+  if (lang.code === 'en') return EN_NOTIF_STRINGS;
+
+  const cacheKey = `ui_translations_${lang.code}`;
+  const cached = await AsyncStorage.getItem(cacheKey);
+  if (cached) return extractNotifStrings(JSON.parse(cached));
+
+  // Cache miss (e.g. just cleared before rescheduling) — fetch directly so
+  // notifications use the right language regardless of the async fetch race.
+  try {
+    const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+    const res = await fetch(`${BASE_URL}/translations/ui`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ languageCode: lang.code, languageName: lang.name }),
+    });
+    if (res.ok) {
+      const data: Record<string, string> = await res.json();
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(data));
+      return extractNotifStrings(data);
+    }
+  } catch {}
+
+  return EN_NOTIF_STRINGS;
+}
+
+const CHECKIN_NOTIF_ID = 'curapath_checkin_daily'; // fixed identifier — rescheduling replaces it atomically
+const NOTIF_ID_KEY = 'checkin_notif_id'; // kept for legacy cleanup only
 const NOTIF_TIME_KEY = 'checkin_time';
 const NOTIF_ENABLED_KEY = 'checkin_enabled';
 const MED_NOTIF_IDS_KEY = 'med_notif_ids';
@@ -58,8 +73,6 @@ export async function getCheckInNotifSettings(): Promise<CheckInNotifSettings> {
 }
 
 export async function scheduleCheckInReminder(hour: number, minute: number): Promise<void> {
-  await cancelCheckInReminder();
-
   const { status: existing } = await Notifications.getPermissionsAsync();
   const { status } = existing === 'granted'
     ? { status: 'granted' }
@@ -68,7 +81,10 @@ export async function scheduleCheckInReminder(hour: number, minute: number): Pro
 
   const strings = await getNotifStrings();
 
-  const id = await Notifications.scheduleNotificationAsync({
+  // Using a fixed identifier means rescheduling always replaces the previous
+  // check-in notification — no AsyncStorage ID lookup required.
+  await Notifications.scheduleNotificationAsync({
+    identifier: CHECKIN_NOTIF_ID,
     content: {
       title: strings.checkInTitle,
       body: strings.checkInBody,
@@ -80,16 +96,12 @@ export async function scheduleCheckInReminder(hour: number, minute: number): Pro
       minute,
     },
   });
-
-  await AsyncStorage.setItem(NOTIF_ID_KEY, id);
 }
 
 export async function cancelCheckInReminder(): Promise<void> {
-  const id = await AsyncStorage.getItem(NOTIF_ID_KEY);
-  if (id) {
-    await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
-    await AsyncStorage.removeItem(NOTIF_ID_KEY);
-  }
+  await Notifications.cancelScheduledNotificationAsync(CHECKIN_NOTIF_ID).catch(() => {});
+  // Clean up legacy storage key if present
+  await AsyncStorage.removeItem(NOTIF_ID_KEY);
 }
 
 export async function saveCheckInNotifSettings(settings: CheckInNotifSettings): Promise<void> {

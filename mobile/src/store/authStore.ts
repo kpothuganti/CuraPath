@@ -33,23 +33,20 @@ export const authStore = create<AuthState>((set, get) => ({
   refresh: async () => {
     const { refreshToken } = get();
     if (!refreshToken) return false;
-    try {
-      const res = await fetch(`${BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (!res.ok) return false;
-      const { data } = await res.json();
-      await AsyncStorage.multiSet([
-        ['accessToken', data.accessToken],
-        ['refreshToken', data.refreshToken],
-      ]);
-      set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      return true;
-    } catch {
-      return false;
-    }
+    // Let network errors throw — caller should only logout on explicit server rejection
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) return false;
+    const { data } = await res.json();
+    await AsyncStorage.multiSet([
+      ['accessToken', data.accessToken],
+      ['refreshToken', data.refreshToken],
+    ]);
+    set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    return true;
   },
 
   logout: async () => {

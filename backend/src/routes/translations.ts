@@ -13,7 +13,7 @@ const UI_STRINGS: Record<string, string> = {
   // Home screen
   dayOfRecovery: 'Day {n} of Recovery',
   recoveryProgress: 'Recovery Progress',
-  daysProgress: '{done} of 30 days · {remaining} days remaining',
+  daysProgress: '{done} of {total} days · {remaining} days remaining',
   dailyCheckIn: 'Daily Check-In',
   howAreYouFeeling: 'How are you feeling today?',
   questionsCount: '{n} questions · takes 1 minute',

@@ -2,7 +2,7 @@
 
 **Author:** Krishna Pothuganti  
 **Purpose:** Deep technical reference — how the entire system works end-to-end, written to be shared with engineers or used as a personal mental model of the codebase.  
-**Last updated:** May 2026
+**Last updated:** August 2026
 
 ---
 
@@ -55,7 +55,7 @@
 
 ## 1. What CuraPath Does — The One-Paragraph Summary
 
-CuraPath is a HIPAA-compliant iOS mobile app that solves a real problem: most post-surgery patients leave the hospital with dense, confusing discharge paperwork that they either misread or ignore. The app lets users photograph or upload that paperwork, sends it to Claude AI (Anthropic's large language model), and converts it into a clean, plain-English structured recovery plan. That plan includes a personalized medication schedule with per-dose reminders, daily symptom check-ins built from the actual red flags in the discharge instructions, activity restrictions, wound care guidance, diet notes, follow-up appointment reminders, and more. Everything is persisted in a HIPAA-covered PostgreSQL database on AWS. The system is fully authenticated with JWTs and is designed to hold real protected health information (PHI).
+CuraPath is a HIPAA-compliant iOS mobile app that solves a real problem: most post-surgery patients leave the hospital with dense, confusing discharge paperwork that they either misread or ignore. The app lets users photograph or upload that paperwork, sends it to Claude AI (Anthropic's large language model), and converts it into a clean, plain-English structured recovery plan. That plan includes a personalized medication schedule with per-dose reminders, daily symptom check-ins built from the actual red flags in the discharge instructions, activity restrictions, wound care guidance, diet notes, follow-up appointment reminders, and more. The entire UI supports 32 languages — both the extracted discharge content and all UI chrome are translated. Everything is persisted in a HIPAA-covered PostgreSQL database on AWS. The system is fully authenticated with JWTs, supports password reset via email OTP, and is designed to hold real protected health information (PHI).
 
 ---
 
@@ -97,9 +97,15 @@ Amazon RDS PostgreSQL
   │    → inbound 5432 only from Beanstalk EC2 security group
   │
   Tables: users, discharges, medications,
-          check_ins, medication_logs, refresh_tokens
+          check_ins, medication_logs, refresh_tokens,
+          password_reset_tokens, ui_translations
   │
   └── S3: curapath-raw-inputs (raw discharge uploads)
+
+AWS SES
+  Domain: curapath.app (verified, DKIM + DMARC)
+  Sender: noreply@curapath.app
+  Purpose: password reset OTPs
 
 DNS + Hosting
   Route 53 → curapath.app
@@ -125,7 +131,7 @@ Claude AI is a third-party API call (Anthropic's API) that the backend makes on 
 
 **React Navigation** is the standard navigation library. The app uses a native stack navigator (hardware-accelerated screen transitions on iOS) combined with a bottom tab navigator. More on this in the navigation section.
 
-**Zustand** is the state management library. It was chosen over Redux because it has no boilerplate — a store is just a function that returns state and actions. There are two stores: `authStore` (user identity + tokens) and `dischargeStore` (the current discharge + medications). Zustand's `.getState()` method also allows accessing state outside React components, which is critical for the API client that needs the current access token without being inside a component.
+**Zustand** is the state management library. It was chosen over Redux because it has no boilerplate — a store is just a function that returns state and actions. There are three stores: `authStore` (user identity + tokens), `dischargeStore` (the current discharge + medications), and `translationsStore` (UI string translations for the current language). Zustand's `.getState()` method also allows accessing state outside React components, which is critical for the API client (needs the current access token) and for triggering language-change reactivity (Settings calls `translationsStore.getState().bumpVersion()` after a language change, which causes all mounted `useUITranslations` instances to re-fetch).
 
 ### Backend: Node.js + Express + TypeScript
 
@@ -158,10 +164,11 @@ recharge/                      ← monorepo root
 │   │   ├── middleware/
 │   │   │   └── auth.ts        ← JWT verification middleware
 │   │   ├── routes/
-│   │   │   ├── auth.ts        ← /auth/* endpoints
-│   │   │   ├── discharge.ts   ← /discharge/* endpoints
-│   │   │   ├── medications.ts ← /medications/* endpoints
-│   │   │   └── checkin.ts     ← /checkin/* endpoints
+│   │   │   ├── auth.ts           ← /auth/* endpoints (incl. forgot/reset-password)
+│   │   │   ├── discharge.ts      ← /discharge/* endpoints
+│   │   │   ├── medications.ts    ← /medications/* endpoints
+│   │   │   ├── checkin.ts        ← /checkin/* endpoints
+│   │   │   └── translations.ts   ← /translations/ui endpoint
 │   │   ├── services/
 │   │   │   ├── claude.ts      ← Anthropic API calls
 │   │   │   └── pdfExtract.ts  ← pdf-parse wrapper
@@ -191,18 +198,20 @@ recharge/                      ← monorepo root
 │   │   │   ├── medications.ts
 │   │   │   └── checkin.ts
 │   │   ├── store/
-│   │   │   ├── authStore.ts   ← Zustand: user + tokens + AsyncStorage persistence
-│   │   │   └── dischargeStore.ts ← Zustand: discharge + medications (session only)
+│   │   │   ├── authStore.ts        ← Zustand: user + tokens + AsyncStorage persistence
+│   │   │   ├── dischargeStore.ts   ← Zustand: discharge + medications (session only)
+│   │   │   └── translationsStore.ts ← Zustand: UI strings + languageVersion bump
 │   │   ├── hooks/
-│   │   │   ├── useTheme.ts    ← returns dark/light Colors based on system setting
-│   │   │   ├── useNotifications.ts ← schedules/cancels all notification types
-│   │   │   └── useLanguage.ts ← language preference, SUPPORTED_LANGUAGES list
+│   │   │   ├── useTheme.ts          ← returns dark/light Colors based on system setting
+│   │   │   ├── useNotifications.ts  ← schedules/cancels all notification types
+│   │   │   ├── useLanguage.ts       ← language preference, SUPPORTED_LANGUAGES list (32)
+│   │   │   └── useUITranslations.ts ← UI string translations backed by translationsStore
 │   │   ├── theme/
 │   │   │   └── index.ts       ← Colors type + dark/light palette objects (30+ tokens)
 │   │   ├── navigation/
 │   │   │   └── AppNavigator.tsx ← RootStack + Tab navigator + notification routing
 │   │   ├── screens/
-│   │   │   ├── Onboarding/    ← Welcome, Register, Login, Permissions
+│   │   │   ├── Onboarding/    ← Welcome, Register, Login, ForgotPassword, Permissions
 │   │   │   ├── Home/          ← HomeScreen (main dashboard)
 │   │   │   ├── Instructions/  ← full discharge instructions view
 │   │   │   ├── Upload/        ← camera / library / PDF picker
@@ -413,11 +422,41 @@ Raw refresh tokens are never stored. Only the SHA-256 hash of the token is store
 
 Refresh tokens expire after 30 days. The query to validate a refresh token is: `WHERE token_hash = $1 AND expires_at > NOW()`.
 
+---
+
+#### `password_reset_tokens` table
+
+```sql
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+Used for the forgot-password OTP flow. The 6-digit one-time code is never stored raw — only its SHA-256 hash is stored (same pattern as refresh tokens). Tokens expire after 15 minutes. On successful password reset all refresh tokens for the user are also invalidated (forcing re-login on all devices).
+
+---
+
+#### `ui_translations` table
+
+```sql
+CREATE TABLE IF NOT EXISTS ui_translations (
+  language_code TEXT PRIMARY KEY,
+  strings_json  JSONB NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+A server-side cache for UI chrome translations (tab labels, button text, notification strings, etc.). The `POST /translations/ui` endpoint checks this table first before calling Claude. Since UI strings rarely change, this cache persists indefinitely — saves Claude API calls and latency. English is never stored here; it returns the hardcoded `UI_STRINGS` constant directly.
+
 ### 5.5 Auth Routes
 
 **File:** `backend/src/routes/auth.ts`
 
-There are four endpoints.
+There are six endpoints.
 
 #### POST /auth/register
 
@@ -450,6 +489,22 @@ This is the token rotation endpoint. It:
 #### DELETE /auth/account
 
 Protected by `requireAuth`. Runs `DELETE FROM users WHERE id = $1`. Because of the `ON DELETE CASCADE` foreign keys, this single delete removes all the user's discharges, medications, check-ins, medication logs, and refresh tokens. This is how "Delete my account & data" works — one SQL statement.
+
+#### POST /auth/forgot-password
+
+Takes `email`. **Always returns success** (HTTP 200 with `{ message: 'If an account with that email exists...' }`) regardless of whether the email is registered — this prevents email enumeration attacks (an attacker cannot tell whether an account exists by watching for different responses).
+
+If the account exists: generates a 6-digit OTP via `randomInt(100000, 999999)`, stores its SHA-256 hash in `password_reset_tokens` with a 15-minute expiry, and sends an email from `noreply@curapath.app` via AWS SES.
+
+#### POST /auth/reset-password
+
+Takes `email`, `code`, and `newPassword`. Hashes the code with SHA-256, looks up a matching non-expired record in `password_reset_tokens`. If found:
+1. Hashes the new password with bcrypt (12 rounds) and updates `users.password_hash`.
+2. Deletes the used OTP row from `password_reset_tokens`.
+3. Deletes all `refresh_tokens` for the user (forcing re-login on all devices).
+4. Returns `{ message: 'Password updated' }`.
+
+Returns 400 if the code is invalid or expired, with a generic message.
 
 ### 5.6 Discharge Routes
 
@@ -619,6 +674,12 @@ After Claude returns text, several defensive parsing steps run:
 
 This ensures that medication times (`"08:00"`) remain parseable by the notification scheduler after translation.
 
+`max_tokens` is set to `8192` for translation calls (and `2048` for initial parsing). This is important — discharge instructions for patients with many medications can produce large JSON. At `2048` tokens, the response was getting truncated mid-array, causing `SyntaxError: Expected ',' or ']' after array element` on the client. The higher limit prevents this entirely.
+
+#### UI Translation Endpoint
+
+`POST /translations/ui` (in `backend/src/routes/translations.ts`) handles UI chrome translations — all the non-content strings like tab labels, button text, notification copy, and the disclaimer. English returns the `UI_STRINGS` constant directly. Other languages: check the `ui_translations` DB table first, return the cached `strings_json` if found; otherwise call Claude with a system prompt to translate all keys, store the result, and return it. This means each non-English language is only translated by Claude once ever (per server lifetime), then served from the DB cache for every subsequent request.
+
 ### 5.11 The PDF Extraction Service
 
 **File:** `backend/src/services/pdfExtract.ts`
@@ -772,6 +833,19 @@ Intentionally simple — just an in-memory cache. There is no AsyncStorage persi
 
 `clear()` is called on logout and on account deletion to wipe the in-memory discharge data.
 
+#### `translationsStore` — `mobile/src/store/translationsStore.ts`
+
+```typescript
+export const translationsStore = create<TranslationsState>((set, get) => ({
+  strings: null,
+  languageVersion: 0,
+  setStrings: (strings) => set({ strings }),
+  bumpVersion: () => set({ languageVersion: get().languageVersion + 1 }),
+}));
+```
+
+This store solves the language-change reactivity problem. The `useUITranslations` hook subscribes to `languageVersion` in its `useEffect` dependency array. When `bumpVersion()` is called (from `SettingsScreen` after a language change), `languageVersion` increments, which causes every mounted `useUITranslations` instance across all screens to re-run its `load()` function and fetch fresh strings. Without this, changing language in Settings would only update the Settings screen — all other still-mounted screens would show stale strings until they remounted.
+
 ### 6.4 The API Client Layer
 
 **File:** `mobile/src/api/client.ts`
@@ -909,19 +983,44 @@ All notification IDs are saved to AsyncStorage (`med_notif_ids`) as a JSON array
 
 ### 6.7 Language / Translation System
 
-**File:** `mobile/src/hooks/useLanguage.ts`
+**Files:** `mobile/src/hooks/useLanguage.ts` and `mobile/src/hooks/useUITranslations.ts`
 
-14 languages are supported: English, Spanish, French, Chinese (Simplified), Arabic, Hindi, Portuguese, Russian, Japanese, Korean, Vietnamese, Tagalog, German, Italian.
+#### Supported Languages
 
-Each language has three properties: `code` (e.g., `'es'`), `name` (e.g., `'Spanish'` — this is what's sent to Claude), and `nativeName` (e.g., `'Español'` — this is what's displayed in the UI).
+32 languages are supported: English, Spanish, French, Chinese (Simplified), Chinese (Traditional), Arabic, Hindi, Portuguese, Russian, Japanese, Korean, Vietnamese, Tagalog, German, Italian, Telugu, Bengali, Urdu, Punjabi, Marathi, Tamil, Gujarati, Kannada, Malayalam, Turkish, Polish, Dutch, Swedish, Persian, Swahili, Amharic, Somali, Haitian Creole.
 
-The preferred language is persisted to AsyncStorage under the key `preferred_language`. On `SettingsScreen`, the language picker opens a bottom sheet modal (`Modal` with `animationType="slide"`) listing all languages. Selecting one:
+Each language has: `code` (BCP-47, e.g., `'es'`), `name` (English name sent to Claude, e.g., `'Spanish'`), and `nativeName` (displayed in the picker, e.g., `'Español'`).
+
+#### Discharge Content Translation
+
+The preferred language is persisted to AsyncStorage under the key `preferred_language`. On `SettingsScreen`, the language picker opens a bottom sheet modal listing all 32 languages. Selecting one:
 1. Saves the new preference to AsyncStorage.
-2. Calls `translateDischarge(item.name)` — the API call that triggers Claude translation.
-3. Updates `dischargeStore` with the translated discharge.
-4. Shows an `ActivityIndicator` while translation is in progress.
+2. Clears the UI translation cache (`AsyncStorage.multiRemove` of all language cache keys).
+3. Calls `translationsStore.getState().bumpVersion()` — triggers UI re-translation immediately.
+4. Calls `translateDischarge(item.name)` — triggers discharge content translation via Claude.
+5. Updates `dischargeStore` with the translated discharge.
+6. Reschedules medication and check-in notifications in the new language.
 
-If a user changes language and the translation fails, an `Alert.alert` shows and the language preference is reverted in storage.
+If translation fails, an `Alert.alert` shows.
+
+#### UI Chrome Translation — `useUITranslations`
+
+**File:** `mobile/src/hooks/useUITranslations.ts`
+
+All hardcoded UI strings (tab labels, button text, section headers, notification copy, the disclaimer) are centralized in this hook. It holds 60+ key-value pairs covering every string in the app.
+
+Flow on mount (or when `languageVersion` changes):
+1. Read `preferred_language` from AsyncStorage.
+2. If English: use `EN_FALLBACK` constant directly (no network call).
+3. Otherwise: check AsyncStorage for a cached translation (`ui_translations_${langCode}`).
+4. If cached: use it.
+5. If not cached: call `POST /translations/ui { languageCode, languageName }` → backend returns the translated strings (from DB cache or fresh Claude call). Store in AsyncStorage.
+
+The hook returns `{ strings, t(key, vars?), greeting }`. The `t()` function handles variable interpolation (e.g., `t('daysProgress', { done: 3, total: 14, remaining: 11 })` → "3 of 14 days · 11 days remaining"). All screens use `const { t } = useUITranslations()` and reference strings by key — no hardcoded English text in any screen.
+
+The tab navigator (`TabNavigator` in `AppNavigator.tsx`) also uses `useUITranslations` to set `tabBarLabel` for all four tabs, so tab labels translate in real time alongside screen content.
+
+`clearUITranslationCache()` is an exported async function that removes all `ui_translations_*` keys from AsyncStorage. It's called by `SettingsScreen` before bumping the version, ensuring stale cached strings are never used after a language change.
 
 ### 6.8 Each Screen Explained
 
@@ -935,7 +1034,20 @@ Fields: first name, last name (optional), email, password. Client-side validatio
 
 #### LoginScreen
 
-Simpler than Register — just email and password. On success: calls `authStore.setAuth(...)`. The navigator picks up the `user` state change and renders the authenticated stack automatically.
+Email and password fields with two additional features:
+- **Remember me:** A checkbox that saves the email to AsyncStorage (`remembered_email`) when checked. On next app launch, the email field is pre-filled.
+- **Forgot password?** link at the bottom navigates to `ForgotPasswordScreen`.
+
+On successful login: calls `authStore.setAuth(...)`. The navigator picks up the `user` state change and renders the authenticated stack automatically.
+
+#### ForgotPasswordScreen
+
+A 3-step password reset flow:
+1. **Email step:** User enters email, taps "Send reset code" → `POST /auth/forgot-password`. Always advances to step 2 (to prevent email enumeration).
+2. **Code step:** User enters the 6-digit OTP from email, new password, and confirm password → `POST /auth/reset-password`. On success, advances to step 3.
+3. **Done step:** Success message with a "Back to log in" button.
+
+The screen is in the unauthenticated stack so it's accessible before login.
 
 #### PermissionsScreen
 
@@ -954,7 +1066,7 @@ If no discharge exists, shows the empty state with an "Upload instructions" butt
 If a discharge exists, shows:
 - **Greeting:** "Good Morning, {firstName}" (firstName from `user.first_name` or falls back to email prefix)
 - **Day counter:** "Day X of Recovery" — calculated as `Math.floor((Date.now() - new Date(discharge.created_at).getTime()) / 86400000)`
-- **Progress bar:** A visual track showing progress through a 30-day recovery window
+- **Progress bar:** A visual track showing progress through the recovery window. The total duration is derived from `parseRecoveryDays(discharge.parsed_json.follow_up_appointments?.[0]?.timeframe)` — a helper that parses strings like "Within 7 days" → 7, "Within 2 weeks" → 14, "4-6 weeks" → 42, "1 month" → 30. Defaults to 30 if no appointment is listed or the timeframe can't be parsed. The bar reaches 100% on the day of the first follow-up appointment.
 - **Check-in card:** Only shown if `!checkInDone`. Shows the number of red flag questions.
 - **Today's Medications:** Each medication with per-time-slot "Take {time}" buttons. The `takenKeys` Set uses `${medicationId}_${time}` as keys so each individual dose slot can be tracked. Already-taken slots show "✓ {time}" instead of a button.
 - **Activity Reminders:** The `activity_restrictions` array from `parsed_json`, shown as list items.
@@ -1041,21 +1153,25 @@ This screen has `gestureEnabled: false` in its stack options, meaning the user c
 
 #### MedLogScreen
 
-A 30-day adherence history. Calls `getMedicationLogs(30)` on focus (using `useFocusEffect` so it refreshes every time the tab is visited). Renders a `FlatList` of log entries showing:
-- A colored status dot (green = taken, amber = skipped, red = missed)
-- Medication name and dose
-- Scheduled time (formatted with `toLocaleString()`)
-- Status label ("Taken", "Skipped", "Missed")
+A 30-day adherence history displayed as a `SectionList`. On focus (`useFocusEffect`), fetches both `getMedications()` and `getMedicationLogs(30)`.
 
-Status derivation: `item.skipped ? 'skip' : item.taken_at ? 'taken' : 'pending'` — where 'pending' represents a past scheduled dose that was neither taken nor skipped (missed).
+**Today section** (always first): synthesized from the medications×times cross-product. For every medication × every scheduled time, a dose row is generated with status:
+- `taken` (green) — a log entry exists for this `medicationId_time` key with `taken_at` set
+- `skipped` (yellow) — log entry with `skipped = true`
+- `missed` (red) — past a scheduled time with no log entry
+- `upcoming` (gray) — the scheduled time hasn't arrived yet today
+
+**History sections:** Each subsequent section is a calendar date (up to 30 days), showing actual log rows from `medication_logs` with status derived from `skipped` / `taken_at`.
+
+All status labels use `t('takenStatus')`, `t('missedStatus')` etc. from `useUITranslations` so they display in the user's selected language.
 
 #### SettingsScreen
 
 The most complex screen. Sections:
 - **Account:** Shows the user's email (read-only).
 - **Care team:** An editable `TextInput` for the provider phone number. Uses `onBlur` (when the field loses focus) to call `updateProviderPhone()` → `PATCH /discharge/latest`. This auto-saves without a separate "Save" button.
-- **Notifications:** A `Switch` to enable/disable daily check-in reminders. When enabled, a custom time picker appears (hour, minute, AM/PM with up/down buttons in 1-hour/5-minute increments). Changes are saved immediately via `saveCheckInNotifSettings()`.
-- **Language:** Shows the current language's `nativeName`. Tapping opens a bottom sheet `Modal` with a `FlatList` of all 14 supported languages. Selecting one triggers translation.
+- **Notifications:** Two switches: (1) **Medication reminders** — toggles all per-dose notifications on/off (`getMedNotifEnabled`/`setMedNotifEnabled`, persisted to AsyncStorage). (2) **Daily check-in reminder** — with a custom time picker (hour, minute, AM/PM in 1-hour/5-minute increments). Changes saved immediately via `saveCheckInNotifSettings()`.
+- **Language:** Shows the current language's `nativeName`. Tapping opens a bottom sheet `Modal` with a `FlatList` of all 32 supported languages. Selecting one: clears the UI translation cache, bumps `translationsStore.languageVersion`, triggers discharge content translation, and reschedules notifications in the new language.
 - **Legal:** The medical disclaimer text.
 - **Actions:** "Log out" and "Delete my account & data" buttons.
 
@@ -1181,7 +1297,18 @@ Account deletion shows a destructive `Alert.alert` confirmation. On confirm: cal
 
 Next time the user uploads a new discharge with Spanish set as preference, the `parseDischargeInstructions` call includes `language: 'Spanish'` and Claude outputs Spanish directly.
 
-### 7.8 Token Refresh Flow
+### 7.8 Forgot Password Flow
+
+1. User taps "Forgot password?" on `LoginScreen` → navigates to `ForgotPasswordScreen`.
+2. **Step 1 — Email:** User enters email, taps "Send reset code" → `forgotPassword(email)` → `POST /auth/forgot-password`.
+3. Backend: checks if user exists, generates 6-digit OTP via `randomInt(100000, 999999)`, stores SHA-256 hash in `password_reset_tokens` with 15-minute expiry, sends email via AWS SES from `noreply@curapath.app`. Always returns HTTP 200 (no enumeration).
+4. Screen advances to step 2 regardless of whether the email existed.
+5. **Step 2 — Code + New Password:** User enters the 6-digit code, new password, confirm password. Taps "Reset password" → `resetPassword(email, code, newPassword)` → `POST /auth/reset-password`.
+6. Backend: hashes the code, finds matching non-expired token, updates password, deletes OTP row, invalidates all refresh tokens for the user.
+7. On success: screen advances to step 3 (done).
+8. **Step 3 — Done:** "Back to log in" button → `navigation.navigate('Login')`.
+
+### 7.9 Token Refresh Flow
 
 **Triggered automatically in `api/client.ts`:**
 1. Any API call returns 401 (access token expired after 1 hour).
@@ -1209,7 +1336,7 @@ Next time the user uploads a new discharge with Spanish set as preference, the `
 **Region:** `us-east-2` (Ohio)  
 **Platform:** Node.js 24 on Amazon Linux 2023  
 **Tier:** Web Server (load-balanced), 1-2 instances  
-**Instance type:** t3.micro (2 vCPU, 1GB RAM — appropriate for low-medium traffic)  
+**Instance type:** t3.small (2 vCPU, 2GB RAM — upgraded from t3.micro to reduce bcrypt CPU pressure and intermittent health check failures)  
 
 Elastic Beanstalk abstracts EC2, Auto Scaling Groups, and the Application Load Balancer. You deploy by running `eb deploy` (after `npm run build`), and Beanstalk:
 1. Zips the application code.
@@ -1258,6 +1385,16 @@ Using a security group as the source (rather than an IP range like `10.0.0.0/8`)
 **Backups:** 7-day automated backup retention. Point-in-time recovery is possible to any second within the last 7 days.
 
 **Encryption at rest:** AES-256 using an AWS-managed key. This means the storage volumes holding PostgreSQL data files, transaction logs, and backups are all encrypted. Even if someone physically removed a hard drive from the AWS data center, the data would be unreadable.
+
+### Amazon SES (Simple Email Service)
+
+**Domain:** `curapath.app` (verified)  
+**Sender:** `noreply@curapath.app`  
+**Purpose:** Password reset OTP emails
+
+Domain verification was done via DKIM records added to Route 53. DMARC is configured. SES was initially in the sandbox (only verified recipient addresses could receive email). AWS production access was requested and approved, allowing emails to any address.
+
+The backend uses `@aws-sdk/client-ses` with `SendEmailCommand`. OTP emails contain only the 6-digit code and a 15-minute expiry notice — no PHI is included in email content.
 
 ### S3
 
@@ -1524,10 +1661,20 @@ Although `provider_phone` is returned in the Claude JSON response and is part of
 
 Whenever a translation is applied, only `parsed_json` is updated. `original_parsed_json` always holds the original English Claude output. This prevents translation degradation — going English → Spanish → French → English would degrade accuracy with each round-trip. By always translating from `original_parsed_json`, you're always translating from the highest-quality source.
 
+### UI Translation Reactivity via `languageVersion`
+
+The naive approach to language switching — fetching new strings in a `useEffect` on language change — only updates the component that triggers the fetch. All other mounted screens remain stale until they unmount and remount.
+
+The solution is a Zustand "version counter" in `translationsStore`. The `languageVersion` field starts at 0 and increments on every language change via `bumpVersion()`. The `useUITranslations` hook includes `languageVersion` in its `useEffect` dependency array:
+```typescript
+useEffect(() => { load(); }, [languageVersion]);
+```
+Because Zustand subscriptions are global, every component that calls `useUITranslations()` subscribes to the same store and re-runs its effect simultaneously when the version changes. This gives instant, simultaneous update of all 4+ mounted screens with a single `bumpVersion()` call.
+
 ### The `dischargeStore` Is Not Persisted to AsyncStorage
 
 Unlike `authStore`, `dischargeStore` does not write to AsyncStorage. The discharge data is fetched from the API on every cold start (in `HomeScreen`'s `useEffect`). This is intentional: discharge data can be large, it can change (if the user uploads a new discharge), and it's always available from the API. Persisting it to AsyncStorage would require cache invalidation logic that isn't worth the complexity. The trade-off is a brief loading spinner on cold start — acceptable for a medical app where showing stale data is worse than showing a spinner.
 
 ---
 
-*This document was written to reflect the state of the CuraPath codebase as of the initial TestFlight release (May 2026). All file paths are relative to the repository root at `/Users/ksp/Desktop/recharge/`.*
+*This document reflects the CuraPath codebase as of August 2026 (post-TestFlight, pre-App Store submission). All file paths are relative to the repository root at `/Users/ksp/Desktop/recharge/`.*

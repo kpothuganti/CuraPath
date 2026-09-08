@@ -6,13 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#13131a"
-    },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#13131a"
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -20,7 +22,8 @@
           "color": "#4f7eff",
           "sounds": []
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "ios": {
       "supportsTablet": true,
@@ -40,7 +43,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.kspothuganti.recharge"
     },

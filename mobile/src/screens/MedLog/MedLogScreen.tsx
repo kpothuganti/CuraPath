@@ -138,11 +138,11 @@ export default function MedLogScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('medicationLog')}</Text>
-        <Text style={styles.sub}>{t('last30Days')}</Text>
       </View>
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.empty}>{t('noMedicationsScheduled')}</Text>}
         renderSectionHeader={({ section }) => (

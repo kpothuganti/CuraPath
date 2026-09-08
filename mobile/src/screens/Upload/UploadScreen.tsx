@@ -7,6 +7,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../hooks/useTheme';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Upload'>;
 
@@ -77,7 +78,7 @@ export default function UploadScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>✕</Text>
+          <Ionicons name="close" size={24} color={C.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.title}>Upload your instructions</Text>
       </View>
@@ -85,13 +86,13 @@ export default function UploadScreen({ navigation }: Props) {
       <View style={styles.body}>
         <View style={styles.photoRow}>
           <TouchableOpacity style={[styles.card, styles.cardPhoto]} onPress={handleCamera}>
-            <View style={styles.icon}><Text style={styles.iconText}>📷</Text></View>
+            <View style={styles.icon}><Ionicons name="camera-outline" size={28} color="#4f7eff" /></View>
             <Text style={styles.cardTitle}>Take a photo</Text>
             <Text style={styles.cardSub}>Point your camera at the discharge papers</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.card, styles.cardPhoto]} onPress={handleLibrary}>
-            <View style={styles.icon}><Text style={styles.iconText}>🖼️</Text></View>
+            <View style={styles.icon}><Ionicons name="images-outline" size={28} color="#4f7eff" /></View>
             <Text style={styles.cardTitle}>From library</Text>
             <Text style={styles.cardSub}>Choose an existing photo</Text>
           </TouchableOpacity>
@@ -100,7 +101,7 @@ export default function UploadScreen({ navigation }: Props) {
         <Text style={styles.or}>— or —</Text>
 
         <TouchableOpacity style={styles.card} onPress={handlePDF}>
-          <View style={styles.icon}><Text style={styles.iconText}>📄</Text></View>
+          <View style={styles.icon}><Ionicons name="document-outline" size={28} color="#4f7eff" /></View>
           <Text style={styles.cardTitle}>Upload a PDF</Text>
           <Text style={styles.cardSub}>
             Got a digital copy from the hospital portal? Upload it directly.
@@ -109,8 +110,7 @@ export default function UploadScreen({ navigation }: Props) {
 
         <View style={styles.tip}>
           <Text style={styles.tipText}>
-            💡 Make sure the text is clear and well-lit. Multiple pages? You can add more photos
-            after the first one.
+            Make sure the text is clear and well-lit. Multiple pages? You can add more photos after the first one.
           </Text>
         </View>
       </View>

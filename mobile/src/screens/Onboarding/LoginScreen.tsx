@@ -7,6 +7,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { login } from '../../api/auth';
 import { authStore } from '../../store/authStore';
 import { useTheme } from '../../hooks/useTheme';
+import { Ionicons } from '@expo/vector-icons';
 
 const REMEMBERED_EMAIL_KEY = 'remembered_email';
 
@@ -88,7 +89,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe((v) => !v)}>
           <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-            {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+            {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
           </View>
           <Text style={styles.rememberLabel}>Remember me</Text>
         </TouchableOpacity>

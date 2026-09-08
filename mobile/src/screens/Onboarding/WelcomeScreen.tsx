@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -16,7 +17,7 @@ export default function WelcomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoMark}>
-          <Text style={styles.logoEmoji}>🏥</Text>
+          <Ionicons name="medkit" size={36} color="#4f7eff" />
         </View>
         <Text style={styles.title}>CuraPath</Text>
         <Text style={[styles.title, { fontSize: 18, fontWeight: '500', marginTop: 4 }]}>Your recovery, made simple.</Text>

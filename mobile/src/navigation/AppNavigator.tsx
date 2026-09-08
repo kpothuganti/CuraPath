@@ -3,6 +3,7 @@ import { NavigationContainerRef, NavigationContainer, NavigatorScreenParams } fr
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 
 // Show notifications when app is in the foreground
@@ -63,14 +64,17 @@ export type TabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-function TabIcon({ name, focused }: { name: string; focused: boolean }) {
-  const icons: Record<string, string> = {
-    Home: '🏠',
-    Instructions: '📋',
-    MedLog: '💊',
-    Settings: '⚙️',
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabIcon({ name, focused, color }: { name: string; focused: boolean; color: string }) {
+  const icons: Record<string, { active: IoniconName; inactive: IoniconName }> = {
+    Home:         { active: 'home',          inactive: 'home-outline' },
+    Instructions: { active: 'document-text', inactive: 'document-text-outline' },
+    MedLog:       { active: 'medical',       inactive: 'medical-outline' },
+    Settings:     { active: 'settings',      inactive: 'settings-outline' },
   };
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.4 }}>{icons[name]}</Text>;
+  const icon = icons[name];
+  return <Ionicons name={focused ? icon.active : icon.inactive} size={24} color={color} />;
 }
 
 function TabNavigator() {
@@ -81,7 +85,7 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
+        tabBarIcon: ({ focused, color }) => <TabIcon name={route.name} focused={focused} color={color} />,
         tabBarStyle: {
           backgroundColor: C.bg,
           borderTopColor: C.border,

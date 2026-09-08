@@ -20,8 +20,10 @@ import {
 } from '../../hooks/useLanguage';
 import { useTheme } from '../../hooks/useTheme';
 import { useUITranslations, clearUITranslationCache } from '../../hooks/useUITranslations';
+import { Ionicons } from '@expo/vector-icons';
 import { scheduleMedReminders, scheduleCheckInReminder } from '../../hooks/useNotifications';
 import { translationsStore } from '../../store/translationsStore';
+import { themeStore, ThemePreference } from '../../store/themeStore';
 
 
 export default function SettingsScreen() {
@@ -33,6 +35,7 @@ export default function SettingsScreen() {
   const [language, setLanguage] = useState<Language>(SUPPORTED_LANGUAGES[0]);
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const { preference: themePref, setPreference: setThemePref } = themeStore();
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { t } = useUITranslations();
@@ -163,35 +166,55 @@ export default function SettingsScreen() {
             <View style={styles.timePicker}>
               <View style={styles.timeUnit}>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(1)}>
-                  <Text style={styles.timeBtnText}>▲</Text>
+                  <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
                 <Text style={styles.timeValue}>{(settings.hour % 12 || 12).toString().padStart(2, '0')}</Text>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(-1)}>
-                  <Text style={styles.timeBtnText}>▼</Text>
+                  <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.timeSep}>:</Text>
               <View style={styles.timeUnit}>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(5)}>
-                  <Text style={styles.timeBtnText}>▲</Text>
+                  <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
                 <Text style={styles.timeValue}>{settings.minute.toString().padStart(2, '0')}</Text>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(-5)}>
-                  <Text style={styles.timeBtnText}>▼</Text>
+                  <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
               </View>
               <View style={styles.timeUnit}>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => updateSettings({ hour: (settings.hour + 12) % 24 })}>
-                  <Text style={styles.timeBtnText}>▲</Text>
+                  <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
                 <Text style={styles.timeValue}>{settings.hour >= 12 ? 'PM' : 'AM'}</Text>
                 <TouchableOpacity style={styles.timeBtn} onPress={() => updateSettings({ hour: (settings.hour + 12) % 24 })}>
-                  <Text style={styles.timeBtnText}>▼</Text>
+                  <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={[styles.row, { paddingVertical: 12 }]}>
+          <Text style={styles.rowLabel}>Theme</Text>
+          <View style={styles.segmentedControl}>
+            {(['light', 'system', 'dark'] as ThemePreference[]).map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.segment, themePref === opt && styles.segmentActive]}
+                onPress={() => setThemePref(opt)}
+              >
+                <Text style={[styles.segmentText, themePref === opt && styles.segmentTextActive]}>
+                  {opt === 'system' ? 'Auto' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -203,7 +226,7 @@ export default function SettingsScreen() {
               ? <ActivityIndicator size="small" color={C.accent} />
               : <Text style={styles.langValueText}>{language.nativeName}</Text>
             }
-            <Text style={styles.langChevron}>›</Text>
+            <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
           </View>
         </TouchableOpacity>
         <Text style={styles.fieldHint}>
@@ -237,7 +260,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Language</Text>
               <TouchableOpacity onPress={() => setLangModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Ionicons name="close" size={20} color={C.textMuted} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -271,7 +294,7 @@ export default function SettingsScreen() {
                   <Text style={styles.langOptionNative}>{item.nativeName}</Text>
                   <Text style={styles.langOptionEnglish}>{item.name}</Text>
                   {item.code === language.code && (
-                    <Text style={styles.langCheck}>✓</Text>
+                    <Ionicons name="checkmark" size={18} color={C.accent} />
                   )}
                 </TouchableOpacity>
               )}
@@ -347,5 +370,28 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     langOptionNative: { color: C.textPrimary, fontSize: 15, fontWeight: '600', flex: 1 },
     langOptionEnglish: { color: C.textMuted, fontSize: 13 },
     langCheck: { color: C.accent, fontSize: 16, fontWeight: '700' },
+    segmentedControl: {
+      flexDirection: 'row',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: C.borderMed,
+      overflow: 'hidden',
+    },
+    segment: {
+      paddingVertical: 7,
+      paddingHorizontal: 14,
+      backgroundColor: C.surface,
+    },
+    segmentActive: {
+      backgroundColor: C.accent,
+    },
+    segmentText: {
+      color: C.textSecondary,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    segmentTextActive: {
+      color: '#fff',
+    },
   });
 }

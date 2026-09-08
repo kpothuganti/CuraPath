@@ -13,8 +13,27 @@ import { MedicationRecord } from '../../types';
 import Disclaimer from '../../components/Disclaimer';
 import { useTheme } from '../../hooks/useTheme';
 import { useUITranslations } from '../../hooks/useUITranslations';
+import { Ionicons } from '@expo/vector-icons';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function parseRecoveryDays(timeframe: string | undefined): number {
+  if (!timeframe) return 30;
+  const s = timeframe.toLowerCase();
+  // "within X days" / "X days"
+  const daysMatch = s.match(/(\d+)\s*day/);
+  if (daysMatch) return parseInt(daysMatch[1], 10);
+  // "X-Y weeks" — take the upper bound
+  const rangeWeeks = s.match(/(\d+)\s*[-–]\s*(\d+)\s*week/);
+  if (rangeWeeks) return parseInt(rangeWeeks[2], 10) * 7;
+  // "X weeks"
+  const weeksMatch = s.match(/(\d+)\s*week/);
+  if (weeksMatch) return parseInt(weeksMatch[1], 10) * 7;
+  // "X months"
+  const monthsMatch = s.match(/(\d+)\s*month/);
+  if (monthsMatch) return parseInt(monthsMatch[1], 10) * 30;
+  return 30;
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
@@ -75,6 +94,9 @@ export default function HomeScreen() {
   const daysSince = discharge
     ? Math.floor((Date.now() - new Date(discharge.created_at).getTime()) / 86400000)
     : 0;
+  const totalRecoveryDays = parseRecoveryDays(
+    discharge?.parsed_json?.follow_up_appointments?.[0]?.timeframe
+  );
 
   if (loading) {
     return (
@@ -107,29 +129,36 @@ export default function HomeScreen() {
         <View style={styles.progressCard}>
           <Text style={styles.progressLabel}>{t('recoveryProgress')}</Text>
           <View style={styles.track}>
-            <View style={[styles.fill, { width: `${Math.min((daysSince / 30) * 100, 100)}%` }]} />
+            <View style={[styles.fill, { width: `${Math.min((daysSince / totalRecoveryDays) * 100, 100)}%` }]} />
           </View>
           <Text style={styles.progressDays}>
-            {t('daysProgress', { done: daysSince, remaining: Math.max(30 - daysSince, 0) })}
+            {t('daysProgress', { done: daysSince, total: totalRecoveryDays, remaining: Math.max(totalRecoveryDays - daysSince, 0) })}
           </Text>
         </View>
 
-        {!checkInDone && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('dailyCheckIn')}</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('dailyCheckIn')}</Text>
+        </View>
+        {checkInDone ? (
+          <View style={styles.checkinDoneCard}>
+            <View style={styles.checkinDoneIcon}>
+              <Ionicons name="checkmark-circle" size={22} color={C.success} />
             </View>
-            <TouchableOpacity style={styles.checkinCard} onPress={() => navigation.navigate('CheckIn')}>
-              <View style={styles.checkinIcon}><Text style={{ fontSize: 22 }}>🩺</Text></View>
-              <View style={styles.checkinText}>
-                <Text style={styles.checkinLabel}>{t('howAreYouFeeling')}</Text>
-                <Text style={styles.checkinSub}>
-                  {t('questionsCount', { n: discharge.parsed_json.red_flags.length })}
-                </Text>
-              </View>
-              <Text style={{ color: C.accent, fontSize: 18 }}>›</Text>
-            </TouchableOpacity>
-          </>
+            <View style={styles.checkinText}>
+              <Text style={styles.checkinDoneLabel}>Completed for today</Text>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.checkinCard} onPress={() => navigation.navigate('CheckIn')}>
+            <View style={styles.checkinIcon}><Ionicons name="fitness-outline" size={22} color={C.accent} /></View>
+            <View style={styles.checkinText}>
+              <Text style={styles.checkinLabel}>{t('howAreYouFeeling')}</Text>
+              <Text style={styles.checkinSub}>
+                {t('questionsCount', { n: discharge.parsed_json.red_flags.length })}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.accent} />
+          </TouchableOpacity>
         )}
 
         {medications.length > 0 && (
@@ -141,7 +170,7 @@ export default function HomeScreen() {
               const translatedInstructions = discharge.parsed_json.medications?.[medIndex]?.instructions ?? med.instructions;
               return (
                 <View key={med.id} style={styles.medCard}>
-                  <View style={styles.medIcon}><Text style={{ fontSize: 20 }}>💊</Text></View>
+                  <View style={styles.medIcon}><Ionicons name="medical-outline" size={20} color={C.accent} /></View>
                   <View style={styles.medInfo}>
                     <Text style={styles.medName}>{med.name} {med.dose}</Text>
                     <Text style={styles.medDetail}>{translatedInstructions}</Text>
@@ -178,7 +207,6 @@ export default function HomeScreen() {
             </View>
             {restrictions.map((r, i) => (
               <View key={i} style={styles.taskCard}>
-                <View style={styles.taskCheck} />
                 <Text style={styles.taskLabel}>{r}</Text>
               </View>
             ))}
@@ -223,6 +251,20 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
       backgroundColor: C.surfaceAccent,
       alignItems: 'center', justifyContent: 'center',
     },
+    checkinDoneCard: {
+      marginHorizontal: 20, marginBottom: 4, padding: 16,
+      backgroundColor: C.successSurface,
+      borderWidth: 1, borderColor: C.successBorder, borderRadius: 16,
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+    },
+    checkinDoneIcon: {
+      width: 44, height: 44, borderRadius: 14,
+      backgroundColor: C.successSurface,
+      borderWidth: 1, borderColor: C.successBorder,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    checkinDoneLabel: { color: C.success, fontSize: 14, fontWeight: '700', marginBottom: 2 },
+    checkinDoneSub: { color: C.success, fontSize: 12, opacity: 0.7 },
     checkinText: { flex: 1 },
     checkinLabel: { color: C.textPrimary, fontSize: 14, fontWeight: '700', marginBottom: 2 },
     checkinSub: { color: C.accentSubtext, fontSize: 12 },
@@ -251,13 +293,9 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
       marginHorizontal: 20, marginBottom: 8, padding: 14,
       backgroundColor: C.surface,
       borderWidth: 1, borderColor: C.border, borderRadius: 14,
-      flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+      borderLeftWidth: 3, borderLeftColor: C.accent,
     },
-    taskCheck: {
-      width: 22, height: 22, borderRadius: 11,
-      borderWidth: 2, borderColor: C.checkRing, marginTop: 1,
-    },
-    taskLabel: { color: C.textSecondary, fontSize: 14, lineHeight: 20, flex: 1 },
+    taskLabel: { color: C.textSecondary, fontSize: 14, lineHeight: 20 },
     updateBtn: { marginHorizontal: 20, marginTop: 24, backgroundColor: C.surfaceStrong, borderWidth: 1, borderColor: C.borderMed, borderRadius: 16, padding: 16, alignItems: 'center' },
     updateBtnText: { color: C.textSecondary, fontSize: 15, fontWeight: '600' },
     disclaimerWrap: { marginHorizontal: 20, marginTop: 8 },

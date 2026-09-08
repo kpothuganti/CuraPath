@@ -7,6 +7,7 @@ import { dischargeStore } from '../../store/dischargeStore';
 import Disclaimer from '../../components/Disclaimer';
 import { useTheme } from '../../hooks/useTheme';
 import { useUITranslations } from '../../hooks/useUITranslations';
+import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 export default function InstructionsScreen() {
@@ -36,7 +37,7 @@ export default function InstructionsScreen() {
         </View>
 
         {p.red_flags.length > 0 && (
-          <Section title={`⚠️ ${t('warningSigns')}`} styles={styles}>
+          <Section title={t('warningSigns')} icon="warning-outline" styles={styles}>
             <View style={styles.pills}>
               {p.red_flags.map((f, i) => (
                 <Text key={i} style={[styles.pill, styles.pillRed]}>{f}</Text>
@@ -46,7 +47,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.medications.length > 0 && (
-          <Section title={`💊 ${t('medicationsSection')}`} styles={styles}>
+          <Section title={t('medicationsSection')} icon="medical-outline" styles={styles}>
             {p.medications.map((m, i) => (
               <View key={i} style={styles.medRow}>
                 <Text style={styles.medName}>{m.name} {m.dose}</Text>
@@ -57,7 +58,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.activity_restrictions.length > 0 && (
-          <Section title={`🚶 ${t('activityRestrictionsSection')}`} styles={styles}>
+          <Section title={t('activityRestrictionsSection')} icon="walk-outline" styles={styles}>
             <View style={styles.pills}>
               {p.activity_restrictions.map((r, i) => (
                 <Text key={i} style={styles.pill}>{r}</Text>
@@ -67,7 +68,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.follow_up_appointments.length > 0 && (
-          <Section title={`📅 ${t('followUpSection')}`} styles={styles}>
+          <Section title={t('followUpSection')} icon="calendar-outline" styles={styles}>
             {p.follow_up_appointments.map((a, i) => (
               <View key={i} style={styles.apptRow}>
                 <Text style={styles.apptType}>{a.type}</Text>
@@ -78,7 +79,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.diet_restrictions.length > 0 && (
-          <Section title={`🍽️ ${t('dietSection')}`} styles={styles}>
+          <Section title={t('dietSection')} icon="restaurant-outline" styles={styles}>
             <View style={styles.pills}>
               {p.diet_restrictions.map((d, i) => (
                 <Text key={i} style={[styles.pill, styles.pillGreen]}>{d}</Text>
@@ -88,7 +89,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.wound_care.length > 0 && (
-          <Section title={`🩹 ${t('woundCareSection')}`} styles={styles}>
+          <Section title={t('woundCareSection')} icon="bandage-outline" styles={styles}>
             <View style={styles.pills}>
               {p.wound_care.map((w, i) => (
                 <Text key={i} style={styles.pill}>{w}</Text>
@@ -98,7 +99,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.sleeping_instructions && p.sleeping_instructions.length > 0 && (
-          <Section title={`😴 ${t('sleepingSection')}`} styles={styles}>
+          <Section title={t('sleepingSection')} icon="moon-outline" styles={styles}>
             <View style={styles.pills}>
               {p.sleeping_instructions.map((s, i) => (
                 <Text key={i} style={styles.pill}>{s}</Text>
@@ -108,7 +109,7 @@ export default function InstructionsScreen() {
         )}
 
         {p.exercises && p.exercises.length > 0 && (
-          <Section title={`🏋️ ${t('exercisesSection')}`} styles={styles}>
+          <Section title={t('exercisesSection')} icon="barbell-outline" styles={styles}>
             {p.exercises.map((e, i) => (
               <View key={i} style={styles.exerciseRow}>
                 <Text style={styles.exerciseText}>{e}</Text>
@@ -127,10 +128,15 @@ export default function InstructionsScreen() {
   );
 }
 
-function Section({ title, children, styles }: { title: string; children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+function Section({ title, icon, children, styles }: { title: string; icon: IoniconName; children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
+  const C = useTheme();
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <Ionicons name={icon} size={13} color={C.accent} />
+        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>{title}</Text>
+      </View>
       {children}
     </View>
   );

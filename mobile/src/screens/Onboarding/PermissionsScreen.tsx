@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,10 +9,11 @@ import { useTheme } from '../../hooks/useTheme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 
-const BENEFITS = [
-  { icon: '🩺', text: 'Daily check-in reminders so you never miss a symptom check' },
-  { icon: '💊', text: 'Medication reminders at the times on your discharge paperwork' },
-  { icon: '⚠️', text: 'Missed-dose alerts if you haven\'t logged a medication' },
+type BenefitIcon = React.ComponentProps<typeof Ionicons>['name'];
+const BENEFITS: { icon: BenefitIcon; text: string }[] = [
+  { icon: 'fitness-outline', text: 'Daily check-in reminders so you never miss a symptom check' },
+  { icon: 'medical-outline', text: 'Medication reminders at the times on your discharge paperwork' },
+  { icon: 'alert-circle-outline', text: "Missed-dose alerts if you haven't logged a medication" },
 ];
 
 export default function PermissionsScreen({ navigation }: Props) {
@@ -34,7 +36,7 @@ export default function PermissionsScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconWrap}>
-          <Text style={styles.icon}>🔔</Text>
+          <Ionicons name="notifications-outline" size={34} color="#4f7eff" />
         </View>
 
         <Text style={styles.title}>Stay on track with notifications</Text>
@@ -46,7 +48,7 @@ export default function PermissionsScreen({ navigation }: Props) {
         <View style={styles.benefits}>
           {BENEFITS.map((b, i) => (
             <View key={i} style={styles.benefitRow}>
-              <Text style={styles.benefitIcon}>{b.icon}</Text>
+              <Ionicons name={b.icon} size={20} color="#4f7eff" style={{ marginTop: 1 }} />
               <Text style={styles.benefitText}>{b.text}</Text>
             </View>
           ))}

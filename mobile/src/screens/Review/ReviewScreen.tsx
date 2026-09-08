@@ -9,6 +9,7 @@ import { getMedications } from '../../api/medications';
 import { dischargeStore } from '../../store/dischargeStore';
 import { getCheckInNotifSettings, scheduleCheckInReminder, scheduleMedReminders } from '../../hooks/useNotifications';
 import { useTheme } from '../../hooks/useTheme';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Review'>;
 
@@ -69,7 +70,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {medications.length > 0 && (
-          <Section title="💊 Medications" styles={styles}>
+          <Section title="Medications" icon="medical-outline" styles={styles}>
             {medications.map((med, i) => (
               <View key={i} style={styles.card}>
                 <Text style={styles.cardTitle}>{med.name} — {med.dose}</Text>
@@ -86,7 +87,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {activity_restrictions.length > 0 && (
-          <Section title="🚶 Activity restrictions" styles={styles}>
+          <Section title="Activity restrictions" icon="walk-outline" styles={styles}>
             {activity_restrictions.map((r, i) => (
               <BulletRow key={i} text={r} color={C.textSecondary} />
             ))}
@@ -94,7 +95,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {red_flags.length > 0 && (
-          <Section title="⚠️ Warning signs to watch for" styles={styles}>
+          <Section title="Warning signs to watch for" icon="warning-outline" styles={styles}>
             {red_flags.map((f, i) => (
               <BulletRow key={i} text={f} color={C.dangerText} />
             ))}
@@ -102,7 +103,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {diet_restrictions.length > 0 && (
-          <Section title="🥗 Diet restrictions" styles={styles}>
+          <Section title="Diet restrictions" icon="restaurant-outline" styles={styles}>
             {diet_restrictions.map((d, i) => (
               <BulletRow key={i} text={d} color={C.textSecondary} />
             ))}
@@ -110,7 +111,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {wound_care.length > 0 && (
-          <Section title="🩹 Wound care" styles={styles}>
+          <Section title="Wound care" icon="bandage-outline" styles={styles}>
             {wound_care.map((w, i) => (
               <BulletRow key={i} text={w} color={C.textSecondary} />
             ))}
@@ -118,7 +119,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {follow_up_appointments.length > 0 && (
-          <Section title="📅 Follow-up appointments" styles={styles}>
+          <Section title="Follow-up appointments" icon="calendar-outline" styles={styles}>
             {follow_up_appointments.map((a, i) => (
               <BulletRow key={i} text={`${a.type} — ${a.timeframe}`} color={C.textSecondary} />
             ))}
@@ -126,7 +127,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {sleeping_instructions && sleeping_instructions.length > 0 && (
-          <Section title="😴 Sleeping" styles={styles}>
+          <Section title="Sleeping" icon="moon-outline" styles={styles}>
             {sleeping_instructions.map((s, i) => (
               <BulletRow key={i} text={s} color={C.textSecondary} />
             ))}
@@ -134,7 +135,7 @@ export default function ReviewScreen({ navigation, route }: Props) {
         )}
 
         {exercises && exercises.length > 0 && (
-          <Section title="🏋️ Exercises" styles={styles}>
+          <Section title="Exercises" icon="barbell-outline" styles={styles}>
             {exercises.map((e, i) => (
               <BulletRow key={i} text={e} color={C.textSecondary} />
             ))}
@@ -169,10 +170,15 @@ export default function ReviewScreen({ navigation, route }: Props) {
   );
 }
 
-function Section({ title, children, styles }: { title: string; children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+function Section({ title, icon, children, styles }: { title: string; icon: IoniconName; children: React.ReactNode; styles: ReturnType<typeof makeStyles> }) {
+  const C = useTheme();
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <Ionicons name={icon} size={13} color={C.accent} />
+        <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>{title}</Text>
+      </View>
       {children}
     </View>
   );
