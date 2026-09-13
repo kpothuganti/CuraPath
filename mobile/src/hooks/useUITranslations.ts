@@ -70,7 +70,7 @@ const EN_FALLBACK: UIStrings = {
   medReminderTitle: 'Time to take your medications',
   medNudgeTitle: 'Did you take your medications?',
   medNudgeSuffix: '— due 30 minutes ago.',
-  checkInNotifTitle: 'Morning check-in',
+  checkInNotifTitle: 'Daily check-in',
   checkInNotifBody: "How are you feeling today? Tap to complete your daily symptom check.",
   disclaimer: 'CuraPath helps you track instructions from your healthcare provider. It does not provide medical advice, diagnosis, or treatment recommendations. AI-extracted content may contain errors — always refer to your original discharge paperwork and contact your care team with any health concerns. In an emergency, call 911.',
 };

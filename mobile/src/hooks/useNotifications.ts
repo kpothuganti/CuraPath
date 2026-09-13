@@ -7,7 +7,7 @@ const EN_NOTIF_STRINGS = {
   medTitle: 'Time to take your medications',
   medNudgeTitle: 'Did you take your medications?',
   medNudgeSuffix: '— due 30 minutes ago.',
-  checkInTitle: 'Morning check-in',
+  checkInTitle: 'Daily check-in',
   checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
 };
 
@@ -100,8 +100,12 @@ export async function scheduleCheckInReminder(hour: number, minute: number): Pro
 
 export async function cancelCheckInReminder(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(CHECKIN_NOTIF_ID).catch(() => {});
-  // Clean up legacy storage key if present
-  await AsyncStorage.removeItem(NOTIF_ID_KEY);
+  // Also cancel the old notification by its legacy stored ID if still present
+  const legacyId = await AsyncStorage.getItem(NOTIF_ID_KEY);
+  if (legacyId) {
+    await Notifications.cancelScheduledNotificationAsync(legacyId).catch(() => {});
+    await AsyncStorage.removeItem(NOTIF_ID_KEY);
+  }
 }
 
 export async function saveCheckInNotifSettings(settings: CheckInNotifSettings): Promise<void> {
