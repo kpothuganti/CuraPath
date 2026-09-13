@@ -17,6 +17,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+function format12hr(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+}
+
 function parseRecoveryDays(timeframe: string | undefined): number {
   if (!timeframe) return 30;
   const s = timeframe.toLowerCase();
@@ -180,7 +187,7 @@ export default function HomeScreen() {
                         const taken = takenKeys.has(key);
                         return taken ? (
                           <View key={time} style={styles.medDoseTaken}>
-                            <Text style={styles.medDoseTakenText}>✓ {time}</Text>
+                            <Text style={styles.medDoseTakenText}>✓ {format12hr(time)}</Text>
                           </View>
                         ) : (
                           <TouchableOpacity
@@ -188,7 +195,7 @@ export default function HomeScreen() {
                             style={styles.medDoseBtn}
                             onPress={() => handleMedAction(med, time, 'taken')}
                           >
-                            <Text style={styles.medDoseBtnText}>{t('take')} {time}</Text>
+                            <Text style={styles.medDoseBtnText}>{t('take')} {format12hr(time)}</Text>
                           </TouchableOpacity>
                         );
                       })}
