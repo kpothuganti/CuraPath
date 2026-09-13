@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -16,9 +15,11 @@ export default function WelcomeScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.logoMark}>
-          <Ionicons name="medkit" size={36} color="#4f7eff" />
-        </View>
+        <Image
+          source={require('../../../assets/icon.png')}
+          style={styles.logoMark}
+          resizeMode="contain"
+        />
         <Text style={styles.title}>CuraPath</Text>
         <Text style={[styles.title, { fontSize: 18, fontWeight: '500', marginTop: 4 }]}>Your recovery, made simple.</Text>
         <Text style={styles.subtitle}>
@@ -46,9 +47,7 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     container: { flex: 1, backgroundColor: C.bgWelcome },
     content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
     logoMark: {
-      width: 80, height: 80, borderRadius: 24,
-      backgroundColor: C.accentSurface,
-      alignItems: 'center', justifyContent: 'center', marginBottom: 28,
+      width: 100, height: 100, borderRadius: 24, marginBottom: 28,
     },
     logoEmoji: { fontSize: 36 },
     title: { fontSize: 30, fontWeight: '800', color: C.textPrimary, textAlign: 'center', marginBottom: 12, letterSpacing: -0.5 },
