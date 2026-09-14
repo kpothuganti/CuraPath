@@ -11,7 +11,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Permissions'>;
 
 type BenefitIcon = React.ComponentProps<typeof Ionicons>['name'];
 const BENEFITS: { icon: BenefitIcon; text: string }[] = [
-  { icon: 'fitness-outline', text: 'Daily check-in reminders so you never miss a symptom check' },
+  { icon: 'fitness-outline', text: 'Daily Check-In reminders so you never miss a symptom check' },
   { icon: 'medical-outline', text: 'Medication reminders at the times on your discharge paperwork' },
   { icon: 'alert-circle-outline', text: "Missed-dose alerts if you haven't logged a medication" },
 ];

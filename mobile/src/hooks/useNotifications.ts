@@ -7,7 +7,7 @@ const EN_NOTIF_STRINGS = {
   medTitle: 'Time to take your medications',
   medNudgeTitle: 'Did you take your medications?',
   medNudgeSuffix: '— due 30 minutes ago.',
-  checkInTitle: 'Daily check-in',
+  checkInTitle: 'Daily Check-In',
   checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
 };
 
