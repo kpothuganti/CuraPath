@@ -7,6 +7,7 @@ import { dischargeStore } from '../../store/dischargeStore';
 import { MedicationLog, MedicationRecord } from '../../types';
 import { useTheme } from '../../hooks/useTheme';
 import { useUITranslations } from '../../hooks/useUITranslations';
+import Disclaimer from '../../components/Disclaimer';
 
 type DoseStatus = 'taken' | 'skipped' | 'missed' | 'upcoming';
 
@@ -98,7 +99,6 @@ export default function MedLogScreen() {
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { t } = useUITranslations();
-
   const STATUS_LABEL: Record<DoseStatus, string> = {
     taken: t('takenStatus'),
     skipped: t('skippedStatus'),
@@ -135,7 +135,7 @@ export default function MedLogScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('medicationLog')}</Text>
       </View>
@@ -145,6 +145,7 @@ export default function MedLogScreen() {
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.empty}>{t('noMedicationsScheduled')}</Text>}
+        ListFooterComponent={<View style={styles.disclaimerWrap}><Disclaimer /></View>}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -176,8 +177,9 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     header: { padding: 20 },
     title: { color: C.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
     sub: { color: C.textMuted, fontSize: 12, marginTop: 4 },
-    list: { paddingHorizontal: 20, paddingBottom: 40 },
+    list: { paddingHorizontal: 20, paddingBottom: 36 },
     empty: { color: C.textMuted, fontSize: 14, textAlign: 'center', marginTop: 40 },
+    disclaimerWrap: { marginTop: 8 },
     sectionHeader: { paddingVertical: 10, paddingTop: 16 },
     sectionTitle: { color: C.accent, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
     row: {

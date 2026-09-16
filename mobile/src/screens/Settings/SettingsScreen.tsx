@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch, ScrollView, Modal, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authStore } from '../../store/authStore';
@@ -24,12 +24,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { scheduleMedReminders, scheduleCheckInReminder } from '../../hooks/useNotifications';
 import { translationsStore } from '../../store/translationsStore';
 import { themeStore, ThemePreference } from '../../store/themeStore';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 
 export default function SettingsScreen() {
   const { user, logout } = authStore();
   const { discharge, medications, clear, setDischarge } = dischargeStore();
   const [settings, setSettings] = useState<CheckInNotifSettings>({ enabled: true, hour: 8, minute: 0 });
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [medNotifsEnabled, setMedNotifsEnabled] = useState(true);
   const [providerPhone, setProviderPhone] = useState(discharge?.provider_phone ?? '');
   const [language, setLanguage] = useState<Language>(SUPPORTED_LANGUAGES[0]);
@@ -39,7 +41,6 @@ export default function SettingsScreen() {
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { t } = useUITranslations();
-
   useEffect(() => {
     getCheckInNotifSettings().then(setSettings);
     getMedNotifEnabled().then(setMedNotifsEnabled);
@@ -61,15 +62,6 @@ export default function SettingsScreen() {
     } catch {
       Alert.alert('Error', 'Could not save provider phone number.');
     }
-  }
-
-  function adjustHour(delta: number) {
-    updateSettings({ hour: (settings.hour + delta + 24) % 24 });
-  }
-
-  function adjustMinute(delta: number) {
-    const next = (settings.minute + delta + 60) % 60;
-    updateSettings({ minute: next });
   }
 
   async function handleLogout() {
@@ -101,7 +93,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('settings')}</Text>
@@ -161,38 +153,25 @@ export default function SettingsScreen() {
           />
         </View>
         {settings.enabled && (
-          <View style={[styles.row, { flexDirection: 'column', alignItems: 'flex-start', gap: 10 }]}>
+          <View style={styles.timePickerRow}>
             <Text style={styles.rowLabel}>{t('reminderTime')}</Text>
-            <View style={styles.timePicker}>
-              <View style={styles.timeUnit}>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(1)}>
-                  <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
-                </TouchableOpacity>
-                <Text style={styles.timeValue}>{(settings.hour % 12 || 12).toString().padStart(2, '0')}</Text>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustHour(-1)}>
-                  <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
-                </TouchableOpacity>
-              </View>
-              <Text style={styles.timeSep}>:</Text>
-              <View style={styles.timeUnit}>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(1)}>
-                  <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
-                </TouchableOpacity>
-                <Text style={styles.timeValue}>{settings.minute.toString().padStart(2, '0')}</Text>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(-1)}>
-                  <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.timeUnit}>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => updateSettings({ hour: (settings.hour + 12) % 24 })}>
-                  <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
-                </TouchableOpacity>
-                <Text style={styles.timeValue}>{settings.hour >= 12 ? 'PM' : 'AM'}</Text>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => updateSettings({ hour: (settings.hour + 12) % 24 })}>
-                  <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
-                </TouchableOpacity>
-              </View>
-            </View>
+            <DateTimePicker
+              value={(() => { const d = new Date(); d.setHours(settings.hour, settings.minute, 0, 0); return d; })()}
+              mode="time"
+              display="spinner"
+              onChange={(_event, date) => {
+                if (!date) return;
+                const hour = date.getHours();
+                const minute = date.getMinutes();
+                setSettings(prev => ({ ...prev, hour, minute }));
+                if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                saveTimeoutRef.current = setTimeout(() => {
+                  saveCheckInNotifSettings({ ...settings, hour, minute }, medications);
+                }, 700);
+              }}
+              style={styles.timePicker}
+              textColor={C.textPrimary}
+            />
           </View>
         )}
       </View>
@@ -322,17 +301,9 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     phoneInput: { color: C.textPrimary, fontSize: 14, textAlign: 'right', flex: 1, paddingLeft: 12 },
     fieldHint: { color: C.textMuted, fontSize: 11, lineHeight: 16, paddingBottom: 8 },
     disclaimer: { color: C.textMuted, fontSize: 11, lineHeight: 16 },
-    timePicker: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    timeUnit: { alignItems: 'center', gap: 4 },
-    timeSep: { color: C.textPrimary, fontSize: 22, fontWeight: '700', marginBottom: 2, paddingHorizontal: 2 },
-    timeBtn: {
-      width: 36, height: 28, borderRadius: 8,
-      backgroundColor: C.surfaceStrong,
-      alignItems: 'center', justifyContent: 'center',
-    },
-    timeBtnText: { color: C.textTertiary, fontSize: 11, lineHeight: 14 },
-    timeValue: { color: C.textPrimary, fontSize: 20, fontWeight: '700', minWidth: 36, textAlign: 'center' },
-    scroll: { paddingBottom: 40 },
+    timePickerRow: { paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: C.border },
+    timePicker: { width: '100%', height: 140 },
+    scroll: { paddingBottom: 16 },
     actions: { padding: 20, gap: 12, marginTop: 24 },
     logoutBtn: {
       padding: 16, borderRadius: 16,

@@ -53,7 +53,6 @@ export default function HomeScreen() {
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { t, greeting } = useUITranslations();
-
   const firstName = user?.first_name ?? user?.email.split('@')[0] ?? 'there';
 
   useEffect(() => {
@@ -126,7 +125,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.greeting}>{greeting}, {firstName}</Text>
@@ -138,10 +137,21 @@ export default function HomeScreen() {
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${Math.min((daysSince / totalRecoveryDays) * 100, 100)}%` }]} />
           </View>
-          <Text style={styles.progressDays}>
-            {t('daysProgress', { done: daysSince, total: totalRecoveryDays, remaining: Math.max(totalRecoveryDays - daysSince, 0) })}
-          </Text>
+          {daysSince >= totalRecoveryDays ? (
+            <Text style={styles.progressDays}>Initial recovery window complete</Text>
+          ) : (
+            <Text style={styles.progressDays}>{Math.max(totalRecoveryDays - daysSince, 0)} days until initial follow-up</Text>
+          )}
         </View>
+
+        {daysSince >= totalRecoveryDays && (
+          <View style={styles.milestoneCard}>
+            <Ionicons name="flag-outline" size={20} color={C.success} />
+            <Text style={styles.milestoneText}>
+              You've reached your initial recovery milestone. Keep checking in until your next appointment.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('dailyCheckIn')}</Text>
@@ -232,7 +242,7 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
     center: { alignItems: 'center', justifyContent: 'center', padding: 32 },
-    scroll: { paddingBottom: 40 },
+    scroll: { paddingBottom: 36 },
     header: { padding: 20, paddingBottom: 0 },
     greeting: { color: C.textTertiary, fontSize: 13, marginBottom: 2 },
     dayTitle: { color: C.textPrimary, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
@@ -305,6 +315,19 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     taskLabel: { color: C.textSecondary, fontSize: 14, lineHeight: 20 },
     updateBtn: { marginHorizontal: 20, marginTop: 24, backgroundColor: C.surfaceStrong, borderWidth: 1, borderColor: C.borderMed, borderRadius: 16, padding: 16, alignItems: 'center' },
     updateBtnText: { color: C.textSecondary, fontSize: 15, fontWeight: '600' },
+    milestoneCard: {
+      marginHorizontal: 16, marginBottom: 4, padding: 14,
+      backgroundColor: C.successSurface,
+      borderWidth: 1, borderColor: C.successBorder, borderRadius: 16,
+      flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    },
+    milestoneIcon: {
+      width: 44, height: 44, borderRadius: 14,
+      backgroundColor: C.successSurface,
+      borderWidth: 1, borderColor: C.successBorder,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    milestoneText: { color: C.success, fontSize: 13, lineHeight: 18, flex: 1 },
     disclaimerWrap: { marginHorizontal: 20, marginTop: 8 },
     emptyTitle: { color: C.textPrimary, fontSize: 22, fontWeight: '800', marginBottom: 8, textAlign: 'center' },
     emptySub: { color: C.textTertiary, fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 24 },

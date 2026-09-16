@@ -22,7 +22,6 @@ export default function InstructionsScreen() {
   const styles = useMemo(() => makeStyles(C), [C]);
   const { t } = useUITranslations();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
   if (!p) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
@@ -32,7 +31,7 @@ export default function InstructionsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>{t('yourInstructions')}</Text>
@@ -160,7 +159,7 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     container: { flex: 1, backgroundColor: C.bg },
     center: { alignItems: 'center', justifyContent: 'center' },
     empty: { color: C.textMuted, fontSize: 15 },
-    scroll: { paddingBottom: 40 },
+    scroll: { paddingBottom: 16 },
     header: { padding: 20, borderBottomWidth: 1, borderBottomColor: C.border },
     title: { color: C.textPrimary, fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
     sub: { color: C.textMuted, fontSize: 12, marginTop: 4 },
