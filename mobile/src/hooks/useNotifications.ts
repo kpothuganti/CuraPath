@@ -100,23 +100,38 @@ export async function scheduleCheckInReminder(hour: number, minute: number): Pro
 
 export async function cancelCheckInReminder(): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(CHECKIN_NOTIF_ID).catch(() => {});
-  // Also cancel the old notification by its legacy stored ID if still present
+  // Cancel legacy by stored ID if present
   const legacyId = await AsyncStorage.getItem(NOTIF_ID_KEY);
   if (legacyId) {
     await Notifications.cancelScheduledNotificationAsync(legacyId).catch(() => {});
     await AsyncStorage.removeItem(NOTIF_ID_KEY);
   }
+  // Sweep all scheduled notifications and cancel any orphaned check-in ones by title
+  const CHECK_IN_TITLES = ['Morning check-in', 'Daily check-in', 'Daily Check-In'];
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(
+    scheduled
+      .filter(n => CHECK_IN_TITLES.includes(n.content.title ?? ''))
+      .map(n => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {}))
+  );
 }
 
-export async function saveCheckInNotifSettings(settings: CheckInNotifSettings): Promise<void> {
+export async function saveCheckInNotifSettings(settings: CheckInNotifSettings, medications?: MedicationRecord[]): Promise<void> {
   await Promise.all([
     AsyncStorage.setItem(NOTIF_ENABLED_KEY, String(settings.enabled)),
     AsyncStorage.setItem(NOTIF_TIME_KEY, JSON.stringify({ hour: settings.hour, minute: settings.minute })),
   ]);
+  // Nuclear cancel — wipes every scheduled notification to guarantee no orphans survive
+  await Notifications.cancelAllScheduledNotificationsAsync();
+  await AsyncStorage.multiRemove([NOTIF_ID_KEY, MED_NOTIF_IDS_KEY]);
+  // Reschedule check-in if enabled
   if (settings.enabled) {
     await scheduleCheckInReminder(settings.hour, settings.minute);
-  } else {
-    await cancelCheckInReminder();
+  }
+  // Reschedule med reminders so they aren't lost
+  if (medications && medications.length > 0) {
+    const medEnabled = await getMedNotifEnabled();
+    if (medEnabled) await scheduleMedReminders(medications);
   }
 }
 

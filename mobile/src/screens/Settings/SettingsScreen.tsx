@@ -49,7 +49,7 @@ export default function SettingsScreen() {
   async function updateSettings(patch: Partial<CheckInNotifSettings>) {
     const next = { ...settings, ...patch };
     setSettings(next);
-    await saveCheckInNotifSettings(next);
+    await saveCheckInNotifSettings(next, medications);
   }
 
   async function handleProviderPhoneBlur() {
@@ -175,11 +175,11 @@ export default function SettingsScreen() {
               </View>
               <Text style={styles.timeSep}>:</Text>
               <View style={styles.timeUnit}>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(5)}>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(1)}>
                   <Ionicons name="chevron-up" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
                 <Text style={styles.timeValue}>{settings.minute.toString().padStart(2, '0')}</Text>
-                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(-5)}>
+                <TouchableOpacity style={styles.timeBtn} onPress={() => adjustMinute(-1)}>
                   <Ionicons name="chevron-down" size={12} color={C.textTertiary} />
                 </TouchableOpacity>
               </View>

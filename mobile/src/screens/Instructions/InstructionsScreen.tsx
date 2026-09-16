@@ -10,6 +10,11 @@ import { useUITranslations } from '../../hooks/useUITranslations';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
+function cap(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export default function InstructionsScreen() {
   const { discharge } = dischargeStore();
   const p = discharge?.parsed_json;
@@ -51,7 +56,7 @@ export default function InstructionsScreen() {
             {p.medications.map((m, i) => (
               <View key={i} style={styles.medRow}>
                 <Text style={styles.medName}>{m.name} {m.dose}</Text>
-                <Text style={styles.medDetail}>{m.frequency} · {m.times.join(', ')} · {m.instructions}</Text>
+                <Text style={styles.medDetail}>{cap(m.frequency)} - {m.times.map(t => { const [h, min] = t.split(':').map(Number); return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }).join(', ')} - {m.instructions}</Text>
               </View>
             ))}
           </Section>
@@ -71,8 +76,8 @@ export default function InstructionsScreen() {
           <Section title={t('followUpSection')} icon="calendar-outline" styles={styles}>
             {p.follow_up_appointments.map((a, i) => (
               <View key={i} style={styles.apptRow}>
-                <Text style={styles.apptType}>{a.type}</Text>
-                <Text style={styles.apptTime}>{a.timeframe}</Text>
+                <Text style={styles.apptType}>{a.type}:</Text>
+                <Text style={styles.apptTime}>{cap(a.timeframe)}</Text>
               </View>
             ))}
           </Section>
@@ -110,11 +115,19 @@ export default function InstructionsScreen() {
 
         {p.exercises && p.exercises.length > 0 && (
           <Section title={t('exercisesSection')} icon="barbell-outline" styles={styles}>
-            {p.exercises.map((e, i) => (
-              <View key={i} style={styles.exerciseRow}>
-                <Text style={styles.exerciseText}>{e}</Text>
-              </View>
-            ))}
+            {p.exercises.map((e, i) => {
+              const colonIdx = e.indexOf(':');
+              const label = colonIdx === -1 ? e : e.slice(0, colonIdx);
+              const rest = colonIdx === -1 ? '' : e.slice(colonIdx);
+              const titleLabel = cap(label);
+              return (
+                <View key={i} style={styles.exerciseRow}>
+                  <Text style={styles.exerciseText}>
+                    <Text style={{ fontWeight: '700' }}>{titleLabel}</Text>{rest}
+                  </Text>
+                </View>
+              );
+            })}
           </Section>
         )}
 
