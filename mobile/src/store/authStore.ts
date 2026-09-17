@@ -9,7 +9,7 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
-  setAuth: (user: UserProfile, accessToken: string, refreshToken: string) => Promise<void>;
+  setAuth: (user: UserProfile, accessToken: string, refreshToken: string, persist?: boolean) => Promise<void>;
   refresh: () => Promise<boolean>;
   logout: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
@@ -21,12 +21,17 @@ export const authStore = create<AuthState>((set, get) => ({
   refreshToken: null,
   isLoading: true,
 
-  setAuth: async (user, accessToken, refreshToken) => {
-    await AsyncStorage.multiSet([
-      ['accessToken', accessToken],
-      ['refreshToken', refreshToken],
-      ['user', JSON.stringify(user)],
-    ]);
+  setAuth: async (user, accessToken, refreshToken, persist = false) => {
+    if (persist) {
+      await AsyncStorage.multiSet([
+        ['accessToken', accessToken],
+        ['refreshToken', refreshToken],
+        ['user', JSON.stringify(user)],
+      ]);
+    } else {
+      // Clear any previously persisted session so old tokens don't auto-login
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+    }
     set({ user, accessToken, refreshToken });
   },
 
@@ -39,7 +44,8 @@ export const authStore = create<AuthState>((set, get) => ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
-    if (!res.ok) return false;
+    if (res.status === 401 || res.status === 403) return false; // explicit token rejection → logout
+    if (!res.ok) throw new Error(`refresh failed ${res.status}`); // server error → keep logged in
     const { data } = await res.json();
     await AsyncStorage.multiSet([
       ['accessToken', data.accessToken],

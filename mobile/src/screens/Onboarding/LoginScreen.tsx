@@ -1,7 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { login } from '../../api/auth';
@@ -9,27 +8,16 @@ import { authStore } from '../../store/authStore';
 import { useTheme } from '../../hooks/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 
-const REMEMBERED_EMAIL_KEY = 'remembered_email';
-
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const { setAuth } = authStore();
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  useEffect(() => {
-    AsyncStorage.getItem(REMEMBERED_EMAIL_KEY).then((saved) => {
-      if (saved) {
-        setEmail(saved);
-        setRememberMe(true);
-      }
-    });
-  }, []);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -43,12 +31,7 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       const res = await login(email.trim(), password);
-      if (rememberMe) {
-        await AsyncStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim());
-      } else {
-        await AsyncStorage.removeItem(REMEMBERED_EMAIL_KEY);
-      }
-      await setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
+      await setAuth(res.data.user, res.data.accessToken, res.data.refreshToken, keepLoggedIn);
     } catch (err: any) {
       const msg = err.message ?? '';
       if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('credentials')) {
@@ -87,11 +70,11 @@ export default function LoginScreen({ navigation }: Props) {
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe((v) => !v)}>
-          <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-            {rememberMe && <Ionicons name="checkmark" size={14} color="#fff" />}
+        <TouchableOpacity style={styles.rememberRow} onPress={() => setKeepLoggedIn((v) => !v)}>
+          <View style={[styles.checkbox, keepLoggedIn && styles.checkboxChecked]}>
+            {keepLoggedIn && <Ionicons name="checkmark" size={14} color="#fff" />}
           </View>
-          <Text style={styles.rememberLabel}>Remember me</Text>
+          <Text style={styles.rememberLabel}>Keep me logged in</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
