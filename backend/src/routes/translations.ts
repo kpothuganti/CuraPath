@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import Anthropic from '@anthropic-ai/sdk';
 import pool from '../db';
+import { callClaude } from '../services/claude';
 
 const router = Router();
-const client = new Anthropic();
 
 const UI_STRINGS: Record<string, string> = {
   // Greeting
@@ -113,13 +112,12 @@ Return ONLY valid JSON, no explanation.
 
 ${JSON.stringify(UI_STRINGS, null, 2)}`;
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 4096,
+    const rawText = await callClaude({
       messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4096,
     });
 
-    const raw = (message.content[0] as { type: string; text: string }).text.trim();
+    const raw = rawText.trim();
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No JSON in response');
     const translated: Record<string, string> = JSON.parse(jsonMatch[0]);

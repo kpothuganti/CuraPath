@@ -1,5 +1,30 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DischargeJSON } from '../types';
+
+const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
+const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-sonnet-4-5-20250929-v1:0';
+
+export async function callClaude(params: {
+  system?: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: any }>;
+  max_tokens: number;
+}): Promise<string> {
+  const response = await bedrock.send(new InvokeModelCommand({
+    modelId: MODEL_ID,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify({
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: params.max_tokens,
+      ...(params.system && { system: params.system }),
+      messages: params.messages,
+    }),
+  }));
+  const body = JSON.parse(new TextDecoder().decode(response.body));
+  const text = body.content?.find((b: any) => b.type === 'text')?.text;
+  if (!text) throw new Error('No text content in Bedrock response');
+  return text;
+}
 
 const MOCK_DISCHARGE: DischargeJSON = {
   medications: [
@@ -51,7 +76,6 @@ const MOCK_DISCHARGE: DischargeJSON = {
   ],
 };
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'mock' });
 
 const SYSTEM_PROMPT = `You are a medical document parser. Extract structured information from hospital discharge instructions.
 Return ONLY valid JSON — no preamble, no markdown fences — matching this exact schema:
@@ -95,7 +119,7 @@ export async function parseDischargeInstructions(
     return MOCK_DISCHARGE;
   }
 
-  const userContent: Anthropic.MessageParam['content'] =
+  const userContent =
     input.type === 'image'
       ? [
           {
@@ -113,20 +137,14 @@ export async function parseDischargeInstructions(
     ? SYSTEM_PROMPT
     : `${SYSTEM_PROMPT}\nOutput all text in ${language}. Do not translate medication names or dosages.`;
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 2048,
+  const rawText = await callClaude({
     system: systemPrompt,
     messages: [{ role: 'user', content: userContent }],
+    max_tokens: 2048,
   });
 
-  const textBlock = message.content.find((b) => b.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('Claude returned no text content');
-  }
-
   try {
-    let raw = textBlock.text.trim();
+    let raw = rawText.trim();
     // Strip markdown code fences if present
     raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     // Extract just the outermost JSON object in case there's surrounding text
@@ -141,7 +159,7 @@ export async function parseDischargeInstructions(
     return parsed as DischargeJSON;
   } catch (e: any) {
     if (e.message.startsWith('The photo was')) throw e;
-    throw new Error(`Claude returned invalid JSON: ${textBlock.text.slice(0, 200)}`);
+    throw new Error(`Claude returned invalid JSON: ${rawText.slice(0, 200)}`);
   }
 }
 
@@ -153,9 +171,7 @@ export async function translateDischargeJSON(
     return json;
   }
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 8192,
+  let raw = await callClaude({
     system: 'You are a precise medical translator. Return only valid JSON with no preamble or markdown fences.',
     messages: [{
       role: 'user',
@@ -171,12 +187,9 @@ Rules:
 JSON:
 ${JSON.stringify(json)}`,
     }],
+    max_tokens: 8192,
   });
-
-  const textBlock = message.content.find((b) => b.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') throw new Error('No translation returned');
-
-  let raw = textBlock.text.trim();
+  raw = raw.trim();
   raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
