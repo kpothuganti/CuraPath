@@ -20,7 +20,8 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.curapath.app"
+        "EXPO_PUBLIC_API_URL": "https://api.curapath.app",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://f3ad1e209cbc6633c2dbd3909c0890e0@o4512145899782144.ingest.us.sentry.io/4512145929666560"
       }
     }
   },
