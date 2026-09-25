@@ -2,13 +2,25 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Sentry from '@sentry/react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { authStore } from './src/store/authStore';
 import { themeStore } from './src/store/themeStore';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function App() {
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    // Discharge instructions and medication data are PHI — never let Sentry
+    // collect device/user identifiers or request bodies alongside crash reports.
+    sendDefaultPii: false,
+    tracesSampleRate: 0,
+  });
+}
+
+function App() {
   const { loadFromStorage } = authStore();
   const preference = themeStore((s) => s.preference);
   const system = useColorScheme();
@@ -44,3 +56,5 @@ export default function App() {
     </>
   );
 }
+
+export default sentryDsn ? Sentry.wrap(App) : App;
