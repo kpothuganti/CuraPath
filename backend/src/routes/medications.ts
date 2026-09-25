@@ -6,15 +6,16 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 const router = Router();
 router.use(requireAuth);
 
-// GET /medications — all meds for current discharge
+// GET /medications — all meds for the user's latest discharge
 router.get('/', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
       `SELECT m.*
        FROM medications m
-       JOIN discharges d ON d.id = m.discharge_id
-       WHERE d.user_id = $1
-       ORDER BY d.created_at DESC, m.name`,
+       WHERE m.discharge_id = (
+         SELECT id FROM discharges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1
+       )
+       ORDER BY m.name`,
       [req.userId]
     );
     res.json({ data: result.rows });
@@ -87,6 +88,9 @@ router.get('/logs', async (req: AuthRequest, res: Response): Promise<void> => {
        FROM medication_logs ml
        JOIN medications m ON m.id = ml.medication_id
        WHERE ml.user_id = $1
+         AND m.discharge_id = (
+           SELECT id FROM discharges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1
+         )
          AND ml.scheduled_time >= NOW() - ($2 || ' days')::INTERVAL
        ORDER BY ml.scheduled_time DESC`,
       [req.userId, parseInt(days, 10)]
