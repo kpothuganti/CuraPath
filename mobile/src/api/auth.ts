@@ -40,3 +40,11 @@ export async function resetPassword(email: string, code: string, newPassword: st
 export async function deleteAccount(): Promise<ApiResponse<{ deleted: boolean }>> {
   return api.delete('/auth/account');
 }
+
+export async function verifyEmail(code: string): Promise<ApiResponse<{ user: UserProfile }>> {
+  return api.post('/auth/verify-email', { code });
+}
+
+export async function resendVerification(): Promise<ApiResponse<{ sent: boolean; alreadyVerified?: boolean }>> {
+  return api.post('/auth/resend-verification', {});
+}

@@ -12,6 +12,17 @@ CREATE TABLE IF NOT EXISTS users (
   first_name  TEXT,
   last_name   TEXT,
   timezone    TEXT NOT NULL DEFAULT 'America/New_York',
+  email_verified BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── Email verification OTPs ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash   TEXT NOT NULL,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used        BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

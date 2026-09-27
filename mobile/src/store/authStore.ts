@@ -9,7 +9,9 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
+  persisted: boolean;
   setAuth: (user: UserProfile, accessToken: string, refreshToken: string, persist?: boolean) => Promise<void>;
+  updateUser: (user: UserProfile) => Promise<void>;
   refresh: () => Promise<boolean>;
   logout: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
@@ -20,6 +22,7 @@ export const authStore = create<AuthState>((set, get) => ({
   accessToken: null,
   refreshToken: null,
   isLoading: true,
+  persisted: false,
 
   setAuth: async (user, accessToken, refreshToken, persist = false) => {
     if (persist) {
@@ -32,7 +35,14 @@ export const authStore = create<AuthState>((set, get) => ({
       // Clear any previously persisted session so old tokens don't auto-login
       await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
     }
-    set({ user, accessToken, refreshToken });
+    set({ user, accessToken, refreshToken, persisted: persist });
+  },
+
+  updateUser: async (user) => {
+    if (get().persisted) {
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+    }
+    set({ user });
   },
 
   refresh: async () => {
@@ -71,6 +81,7 @@ export const authStore = create<AuthState>((set, get) => ({
         accessToken,
         refreshToken,
         user: userJson ? JSON.parse(userJson) : null,
+        persisted: !!userJson,
         isLoading: false,
       });
     } catch {

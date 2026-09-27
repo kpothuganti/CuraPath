@@ -24,6 +24,7 @@ import WelcomeScreen from '../screens/Onboarding/WelcomeScreen';
 import RegisterScreen from '../screens/Onboarding/RegisterScreen';
 import LoginScreen from '../screens/Onboarding/LoginScreen';
 import ForgotPasswordScreen from '../screens/Onboarding/ForgotPasswordScreen';
+import VerifyEmailScreen from '../screens/Onboarding/VerifyEmailScreen';
 import PermissionsScreen from '../screens/Onboarding/PermissionsScreen';
 import ReviewScreen from '../screens/Review/ReviewScreen';
 
@@ -43,6 +44,7 @@ export type RootStackParamList = {
   Register: undefined;
   Login: undefined;
   ForgotPassword: undefined;
+  VerifyEmail: undefined;
   Permissions: undefined;
   // App modals
   Upload: undefined;
@@ -133,7 +135,9 @@ export default function AppNavigator() {
   return (
     <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
+        {user && !user.email_verified ? (
+          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+        ) : user ? (
           <>
             <Stack.Screen name="Tabs" component={TabNavigator} />
             <Stack.Screen name="Permissions" component={PermissionsScreen} />

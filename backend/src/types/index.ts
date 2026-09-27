@@ -76,6 +76,7 @@ export interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   timezone: string;
+  email_verified: boolean;
   created_at: string;
 }
 

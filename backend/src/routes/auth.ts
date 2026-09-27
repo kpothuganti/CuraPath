@@ -30,6 +30,37 @@ function signRefresh(): string {
   return randomBytes(64).toString('hex');
 }
 
+async function sendVerificationEmail(userId: string, email: string): Promise<void> {
+  try {
+    const code = String(randomInt(100000, 999999));
+    const codeHash = createHash('sha256').update(code).digest('hex');
+
+    await pool.query(`DELETE FROM email_verification_tokens WHERE user_id = $1`, [userId]);
+    await pool.query(
+      `INSERT INTO email_verification_tokens (id, user_id, code_hash, expires_at)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '15 minutes')`,
+      [uuidv4(), userId, codeHash]
+    );
+
+    await ses.send(new SendEmailCommand({
+      Source: 'noreply@curapath.app',
+      Destination: { ToAddresses: [email] },
+      Message: {
+        Subject: { Data: 'Verify your CuraPath email' },
+        Body: {
+          Text: {
+            Data: `Your CuraPath verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you didn't create a CuraPath account, you can ignore this email.`,
+          },
+        },
+      },
+    }));
+  } catch (err) {
+    // Don't fail registration/login over a transient email issue — the
+    // resend-verification endpoint gives the user a retry path.
+    console.error('Send verification email error', err);
+  }
+}
+
 // POST /auth/register
 router.post('/register', async (req: Request, res: Response): Promise<void> => {
   const { email, password, timezone, firstName, lastName } = req.body as {
@@ -55,7 +86,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     const result = await pool.query(
       `INSERT INTO users (id, email, password_hash, first_name, last_name, timezone)
        VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, email, first_name, last_name, timezone, created_at`,
+       RETURNING id, email, first_name, last_name, timezone, email_verified, created_at`,
       [uuidv4(), email.toLowerCase(), await hashPassword(password), firstName.trim(), lastName?.trim() ?? null, timezone ?? 'America/New_York']
     );
 
@@ -68,6 +99,8 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
        VALUES ($1, $2, $3, NOW() + INTERVAL '30 days')`,
       [uuidv4(), user.id, createHash('sha256').update(refreshToken).digest('hex')]
     );
+
+    await sendVerificationEmail(user.id, user.email);
 
     res.status(201).json({ data: { user, accessToken, refreshToken } });
   } catch (err: any) {
@@ -91,7 +124,7 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 
   try {
     const result = await pool.query(
-      `SELECT id, email, first_name, last_name, timezone, created_at, password_hash FROM users WHERE email = $1`,
+      `SELECT id, email, first_name, last_name, timezone, email_verified, created_at, password_hash FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
 
@@ -238,6 +271,51 @@ router.post('/reset-password', async (req: Request, res: Response): Promise<void
     res.json({ data: { reset: true } });
   } catch (err) {
     console.error('Reset password error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /auth/verify-email
+router.post('/verify-email', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { code } = req.body as { code?: string };
+  if (!code) { res.status(400).json({ error: 'code is required' }); return; }
+
+  try {
+    const codeHash = createHash('sha256').update(code).digest('hex');
+
+    const tokenResult = await pool.query(
+      `SELECT id FROM email_verification_tokens
+       WHERE user_id = $1 AND code_hash = $2 AND expires_at > NOW() AND used = false`,
+      [req.userId, codeHash]
+    );
+
+    if (!tokenResult.rows[0]) { res.status(400).json({ error: 'Invalid or expired code' }); return; }
+
+    await pool.query(`UPDATE email_verification_tokens SET used = true WHERE id = $1`, [tokenResult.rows[0].id]);
+    const userResult = await pool.query(
+      `UPDATE users SET email_verified = true WHERE id = $1
+       RETURNING id, email, first_name, last_name, timezone, email_verified, created_at`,
+      [req.userId]
+    );
+
+    res.json({ data: { user: userResult.rows[0] } });
+  } catch (err) {
+    console.error('Verify email error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /auth/resend-verification
+router.post('/resend-verification', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(`SELECT email, email_verified FROM users WHERE id = $1`, [req.userId]);
+    if (!result.rows[0]) { res.status(404).json({ error: 'User not found' }); return; }
+    if (result.rows[0].email_verified) { res.json({ data: { sent: false, alreadyVerified: true } }); return; }
+
+    await sendVerificationEmail(req.userId!, result.rows[0].email);
+    res.json({ data: { sent: true } });
+  } catch (err) {
+    console.error('Resend verification error', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

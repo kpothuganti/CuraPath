@@ -44,7 +44,9 @@ export default function RegisterScreen({ navigation }: Props) {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await register(email.trim(), password, timezone, firstName.trim(), lastName.trim());
       await setAuth(res.data.user, res.data.accessToken, res.data.refreshToken);
-      navigation.navigate('Permissions');
+      // Newly registered accounts aren't email_verified yet — AppNavigator
+      // routes to VerifyEmailScreen automatically; it navigates to
+      // Permissions itself once verification succeeds.
     } catch (err: any) {
       const msg = err.message ?? '';
       if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already exists')) {
