@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -61,56 +61,58 @@ export default function RegisterScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Create account</Text>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
+            <Text style={styles.backText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.title}>Create account</Text>
 
-        <View style={styles.nameRow}>
+          <View style={styles.nameRow}>
+            <TextInput
+              style={[styles.input, styles.nameInput]}
+              placeholder="First name"
+              placeholderTextColor={C.placeholderText}
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+              autoComplete="given-name"
+            />
+            <TextInput
+              style={[styles.input, styles.nameInput]}
+              placeholder="Last name"
+              placeholderTextColor={C.placeholderText}
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              autoComplete="family-name"
+            />
+          </View>
           <TextInput
-            style={[styles.input, styles.nameInput]}
-            placeholder="First name"
+            style={styles.input}
+            placeholder="Email"
             placeholderTextColor={C.placeholderText}
-            value={firstName}
-            onChangeText={setFirstName}
-            autoCapitalize="words"
-            autoComplete="given-name"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
           />
           <TextInput
-            style={[styles.input, styles.nameInput]}
-            placeholder="Last name"
+            style={styles.input}
+            placeholder="Password (min. 8 characters)"
             placeholderTextColor={C.placeholderText}
-            value={lastName}
-            onChangeText={setLastName}
-            autoCapitalize="words"
-            autoComplete="family-name"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoComplete="new-password"
           />
-        </View>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={C.placeholderText}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password (min. 8 characters)"
-          placeholderTextColor={C.placeholderText}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete="new-password"
-        />
 
-        <TouchableOpacity style={styles.btn} onPress={handleRegister} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create account</Text>}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={styles.btn} onPress={handleRegister} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Create account</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -118,7 +120,8 @@ export default function RegisterScreen({ navigation }: Props) {
 function makeStyles(C: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bgAlt },
-    content: { flex: 1, padding: 24, justifyContent: 'center' },
+    flex: { flex: 1 },
+    content: { flexGrow: 1, padding: 24, justifyContent: 'center' },
     back: { marginBottom: 32 },
     backText: { color: C.accent, fontSize: 14 },
     title: { fontSize: 26, fontWeight: '800', color: C.textPrimary, marginBottom: 28, letterSpacing: -0.5 },

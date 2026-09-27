@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -48,31 +48,33 @@ export default function VerifyEmailScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Verify your email</Text>
-        <Text style={styles.sub}>
-          We sent a 6-digit code to {user?.email}. Enter it below to finish setting up your account.
-        </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="6-digit code"
-          placeholderTextColor={C.placeholderText}
-          value={code}
-          onChangeText={setCode}
-          keyboardType="number-pad"
-          maxLength={6}
-          autoFocus
-        />
-        <TouchableOpacity style={styles.btn} onPress={handleVerify} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Verify</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.resendBtn} onPress={handleResend} disabled={resending}>
-          <Text style={styles.resendText}>{resending ? 'Sending…' : "Didn't get a code? Resend"}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
-          <Text style={styles.logoutText}>Log out</Text>
-        </TouchableOpacity>
-      </View>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>Verify your email</Text>
+          <Text style={styles.sub}>
+            We sent a 6-digit code to {user?.email}. Enter it below to finish setting up your account.
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="6-digit code"
+            placeholderTextColor={C.placeholderText}
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            maxLength={6}
+            autoFocus
+          />
+          <TouchableOpacity style={styles.btn} onPress={handleVerify} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Verify</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.resendBtn} onPress={handleResend} disabled={resending}>
+            <Text style={styles.resendText}>{resending ? 'Sending…' : "Didn't get a code? Resend"}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={() => logout()}>
+            <Text style={styles.logoutText}>Log out</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -80,7 +82,8 @@ export default function VerifyEmailScreen({ navigation }: Props) {
 function makeStyles(C: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bgAlt },
-    content: { flex: 1, padding: 24, justifyContent: 'center' },
+    flex: { flex: 1 },
+    content: { flexGrow: 1, padding: 24, justifyContent: 'center' },
     title: { fontSize: 26, fontWeight: '800', color: C.textPrimary, marginBottom: 12, letterSpacing: -0.5 },
     sub: { fontSize: 15, color: C.textSecondary, lineHeight: 22, marginBottom: 28 },
     input: {

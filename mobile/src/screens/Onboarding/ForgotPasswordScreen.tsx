@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -50,7 +50,8 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
@@ -124,7 +125,8 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         )}
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -132,7 +134,8 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 function makeStyles(C: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bgAlt },
-    content: { flex: 1, padding: 24, justifyContent: 'center' },
+    flex: { flex: 1 },
+    content: { flexGrow: 1, padding: 24, justifyContent: 'center' },
     back: { marginBottom: 32 },
     backText: { color: C.accent, fontSize: 14 },
     title: { fontSize: 26, fontWeight: '800', color: C.textPrimary, marginBottom: 12, letterSpacing: -0.5 },
