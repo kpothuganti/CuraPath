@@ -1,11 +1,11 @@
-# ReCharge
+# CuraPath
 
 A mobile app that helps patients navigate the 30 days after hospital discharge. Takes confusing discharge paperwork and turns it into plain-English daily tasks, medication reminders, and morning check-ins.
 
 ## How it works
 
 1. Patient photographs or uploads their discharge paperwork
-2. Claude AI parses it into structured data (medications, red flags, restrictions)
+2. Claude (via AWS Bedrock) parses it into structured data (medications, red flags, restrictions)
 3. App surfaces daily tasks, fires medication reminders, and runs a short morning symptom check-in
 4. If a red flag is detected, the patient gets a tap-to-call alert for their care team
 
@@ -57,9 +57,10 @@ DB_NAME=discharge
 DB_USER=your-mac-username   # run: whoami
 DB_PASSWORD=                # blank for Postgres.app default
 
-# Mock mode — keeps true until you have a real Anthropic key
+# Mock mode — keeps true until you have AWS Bedrock access set up
 USE_MOCK_CLAUDE=true
-ANTHROPIC_API_KEY=          # leave blank while USE_MOCK_CLAUDE=true
+AWS_REGION=us-east-1           # only matters once USE_MOCK_CLAUDE=false
+BEDROCK_MODEL_ID=               # leave blank to use the default Sonnet 4.5 inference profile
 ```
 
 ### 3. Create the database
@@ -148,36 +149,42 @@ Scan the QR code with your iPhone camera (iOS) or the Expo Go app (Android).
 
 ## Switching from mock to real AI parsing
 
-By default the backend returns fake discharge data so you can develop without an Anthropic API key.
+By default the backend returns fake discharge data so you can develop without any AWS credentials.
 
-When you're ready to test real document parsing:
+When you're ready to test real document parsing, the backend calls Claude through **AWS Bedrock** (not Anthropic's API directly — this keeps PHI inside AWS's HIPAA BAA in production). You'll need AWS credentials with `bedrock:InvokeModel` permission on both `foundation-model` and `inference-profile` resource types (see `HLD.md` for the exact IAM policy), then:
 
-1. Get a free API key at [console.anthropic.com](https://console.anthropic.com)
+1. Configure AWS credentials locally (e.g. `aws configure`, or an env-based profile)
 2. Update `backend/.env`:
    ```env
    USE_MOCK_CLAUDE=false
-   ANTHROPIC_API_KEY=sk-ant-your-key-here
+   AWS_REGION=us-east-1
+   BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0
    ```
 3. Restart the backend (`rs` in the nodemon terminal)
+
+Note: Anthropic requires a one-time "use case details" form (via the Bedrock console) before their models can be invoked at all — separate from IAM permissions.
 
 ---
 
 ## Tech stack
 
-| Layer    | Choice                           |
-| -------- | -------------------------------- |
-| Mobile   | React Native (Expo) + TypeScript |
-| Backend  | Node.js + Express + TypeScript   |
-| Database | PostgreSQL (RDS in production)   |
-| AI       | Claude API (Anthropic)           |
-| Auth     | JWT with refresh token rotation  |
-| State    | Zustand + AsyncStorage           |
+| Layer    | Choice                              |
+| -------- | ----------------------------------- |
+| Mobile   | React Native (Expo) + TypeScript    |
+| Backend  | Node.js + Express + TypeScript      |
+| Database | PostgreSQL (RDS in production)      |
+| AI       | Claude (Anthropic) via AWS Bedrock  |
+| Auth     | JWT with refresh token rotation     |
+| State    | Zustand + AsyncStorage              |
+| Crash reporting | Sentry (mobile only, no PII) |
 
 ## HIPAA note
 
-This app handles Protected Health Information (PHI). Before onboarding any real patients:
+This app handles Protected Health Information (PHI). Production status:
 
-- Sign a Business Associate Agreement (BAA) with your cloud provider
-- Deploy the backend to AWS with RDS + S3 (see `HLD.md` for the full architecture)
-- Enable encryption at rest on all datastores
-- Complete the checklist in `PRD.md`
+- ✅ AWS BAA signed (active, covers RDS, Elastic Beanstalk, and Bedrock)
+- ✅ Backend deployed to AWS (Elastic Beanstalk + RDS)
+- ✅ AI processing routed through AWS Bedrock, not Anthropic's API directly — keeps PHI inside the BAA boundary
+- ✅ Encryption at rest (RDS) and in transit (TLS via ACM cert)
+
+See `docs/CuraPath_Technical_Overview.md` for the full architecture and `HLD.md` for the original design.

@@ -2,7 +2,7 @@
 
 **Author:** Krishna Pothuganti  
 **Purpose:** Deep technical reference — how the entire system works end-to-end, written to be shared with engineers or used as a personal mental model of the codebase.  
-**Last updated:** August 2026
+**Last updated:** September 2026
 
 ---
 
@@ -55,7 +55,7 @@
 
 ## 1. What CuraPath Does — The One-Paragraph Summary
 
-CuraPath is a HIPAA-compliant iOS mobile app that solves a real problem: most post-surgery patients leave the hospital with dense, confusing discharge paperwork that they either misread or ignore. The app lets users photograph or upload that paperwork, sends it to Claude AI (Anthropic's large language model), and converts it into a clean, plain-English structured recovery plan. That plan includes a personalized medication schedule with per-dose reminders, daily symptom check-ins built from the actual red flags in the discharge instructions, activity restrictions, wound care guidance, diet notes, follow-up appointment reminders, and more. The entire UI supports 32 languages — both the extracted discharge content and all UI chrome are translated. Everything is persisted in a HIPAA-covered PostgreSQL database on AWS. The system is fully authenticated with JWTs, supports password reset via email OTP, and is designed to hold real protected health information (PHI).
+CuraPath is a HIPAA-compliant iOS mobile app that solves a real problem: most post-surgery patients leave the hospital with dense, confusing discharge paperwork that they either misread or ignore. The app lets users photograph or upload that paperwork, sends it to Claude (Anthropic's large language model) via AWS Bedrock — kept within AWS's HIPAA Business Associate Agreement rather than calling Anthropic's API directly — and converts it into a clean, plain-English structured recovery plan. That plan includes a personalized medication schedule with per-dose reminders, daily symptom check-ins built from the actual red flags in the discharge instructions, activity restrictions, wound care guidance, diet notes, follow-up appointment reminders, and more. The entire UI supports 32 languages — both the extracted discharge content and all UI chrome are translated. Everything is persisted in a HIPAA-covered PostgreSQL database on AWS. The system is fully authenticated with JWTs, supports password reset via email OTP, and is designed to hold real protected health information (PHI).
 
 ---
 
@@ -66,10 +66,11 @@ Understanding the architecture at a high level before diving into any individual
 ```
 User's iPhone
   │
-  │  React Native (Expo SDK 54)
+  │  React Native (Expo SDK 57)
   │  Zustand state management
   │  expo-notifications (Time Sensitive)
   │  expo-image-picker / expo-document-picker
+  │  @sentry/react-native (crash reporting)
   │
   │  HTTPS (ACM cert, .app TLD)
   ▼
@@ -79,12 +80,16 @@ AWS Application Load Balancer (ALB)
 AWS Elastic Beanstalk
   │  Environment: curapath-backend-env (us-east-2)
   │  Node.js 24 on Amazon Linux 2023
-  │  1–2 t3.micro instances
+  │  1–2 t3.small instances
   │  Nginx as reverse proxy
   │
-  │  Node.js + Express + TypeScript (compiled to dist/)
+  │  Node.js + Express + TypeScript (compiled to dist/ via a
+  │  .platform/hooks/predeploy build step, so `eb deploy` always
+  │  ships whatever is in src/, never a stale local build)
   │  JWT authentication
-  │  Anthropic Claude API (@anthropic-ai/sdk)
+  │  AWS Bedrock Runtime (@aws-sdk/client-bedrock-runtime) —
+  │  invokes Claude Sonnet 4.5 through a cross-region inference
+  │  profile, covered by AWS's HIPAA BAA
   │  pdf-parse for PDF text extraction
   │
   │  VPC-only connection (port 5432)
@@ -99,23 +104,26 @@ Amazon RDS PostgreSQL
   Tables: users, discharges, medications,
           check_ins, medication_logs, refresh_tokens,
           password_reset_tokens, ui_translations
-  │
-  └── S3: curapath-raw-inputs (raw discharge uploads)
 
 AWS SES
   Domain: curapath.app (verified, DKIM + DMARC)
   Sender: noreply@curapath.app
   Purpose: password reset OTPs
 
+Sentry (curapath-kf org, curapath-mobile project)
+  Purpose: mobile crash reporting only
+  sendDefaultPii: false, tracesSampleRate: 0 — no PHI, no user
+  identifiers, no usage telemetry ever leaves the device
+
 DNS + Hosting
   Route 53 → curapath.app
-  GitHub Pages → curapath.app (marketing site)
+  GitHub Pages → curapath.app (marketing site + support + privacy policy)
   ACM certificate → curapath.app + api.curapath.app
 ```
 
 The key insight is that the mobile app never talks directly to the database. All database access goes through the Express API on Elastic Beanstalk. The RDS instance is isolated inside AWS's VPC and only accepts connections from the Beanstalk EC2 instances — nobody can reach it from the public internet.
 
-Claude AI is a third-party API call (Anthropic's API) that the backend makes on behalf of the user. The image or PDF text is sent to Claude, and the structured JSON comes back. The mobile app never calls the Anthropic API directly.
+Claude is invoked through AWS Bedrock, not Anthropic's own API — the backend calls `BedrockRuntimeClient.send(new InvokeModelCommand(...))` with an Anthropic-shaped request body (`anthropic_version: 'bedrock-2023-05-31'`). This keeps discharge PHI inside AWS's HIPAA BAA boundary the whole way through. The mobile app never calls Bedrock or Anthropic directly — only the backend does, on the user's behalf.
 
 ---
 
@@ -125,7 +133,7 @@ Claude AI is a third-party API call (Anthropic's API) that the backend makes on 
 
 **React Native** was chosen so the app could eventually ship on both iOS and Android from one codebase. For the initial TestFlight/App Store launch, iOS is the focus.
 
-**Expo SDK 54** (managed workflow) removes the need to maintain Xcode project files manually. EAS (Expo Application Services) handles cloud builds, code signing, and App Store submission. This is critical because it means you do not need a Mac with Xcode to produce a production `.ipa` file — EAS builds in the cloud.
+**Expo SDK 57** (managed workflow) removes the need to maintain Xcode project files manually. EAS (Expo Application Services) handles cloud builds, code signing, and App Store submission. This is critical because it means you do not need a Mac with Xcode to produce a production `.ipa` file — EAS builds in the cloud.
 
 **TypeScript** is used throughout. It catches type errors at compile time, and since the backend and mobile app share a `shared/types/` folder, the same type definitions (like `DischargeJSON`, `MedicationRecord`) are used in both places, eliminating drift.
 
@@ -135,7 +143,7 @@ Claude AI is a third-party API call (Anthropic's API) that the backend makes on 
 
 ### Backend: Node.js + Express + TypeScript
 
-A deliberately minimal, well-understood stack. Express is simple, fast, and the npm ecosystem for auth (bcrypt, jsonwebtoken), database (pg), and AI (anthropic) is excellent.
+A deliberately minimal, well-understood stack. Express is simple, fast, and the npm ecosystem for auth (bcrypt, jsonwebtoken), database (pg), and AI (`@aws-sdk/client-bedrock-runtime`) is excellent.
 
 TypeScript on the backend mirrors the mobile app so types can be shared. The TypeScript is compiled (`tsc`) to `dist/` at deploy time. The Elastic Beanstalk Procfile runs `node dist/server.js` — it does not use `ts-node` in production, which is correct because `ts-node` is a development tool that transpiles on the fly.
 
@@ -147,9 +155,13 @@ PostgreSQL was chosen for its JSONB column type, which is perfect for the `parse
 
 RDS on AWS means managed backups (7-day retention), automatic patching, failover, and encryption at rest — all of which are needed for HIPAA compliance. Running your own Postgres server on an EC2 instance would require you to manage all of that yourself.
 
-### Claude AI: `claude-sonnet-4-5`
+### Claude AI: `claude-sonnet-4-5` via AWS Bedrock
 
-The model used is `claude-sonnet-4-5` (via `@anthropic-ai/sdk`). Sonnet is chosen over Haiku (too fast/cheap, less capable for complex medical document parsing) and Opus (unnecessarily expensive for this structured extraction task). Claude's multimodal capability — being able to accept base64-encoded images directly — is the key technical enabler for the photo upload feature. For PDFs, the text is extracted on the server first (via `pdf-parse`) and sent as text.
+The model used is `anthropic.claude-sonnet-4-5-20250929-v1:0`, invoked through **AWS Bedrock** rather than Anthropic's own API. This was a deliberate migration (previously the backend called `@anthropic-ai/sdk` directly): AWS's Business Associate Agreement (signed May 26, 2026) covers Bedrock, but a direct call to `api.anthropic.com` would send PHI outside any BAA boundary. Since Bedrock's Anthropic models are cross-region and can't be invoked by bare model ID, the backend targets the `us.anthropic.claude-sonnet-4-5-20250929-v1:0` inference profile instead — the IAM role needs `bedrock:InvokeModel` on both the `foundation-model` and `inference-profile` resource types for this to work.
+
+Sonnet is chosen over Haiku (too fast/cheap, less capable for complex medical document parsing) and Opus (unnecessarily expensive for this structured extraction task). Claude's multimodal capability — being able to accept base64-encoded images directly — is the key technical enabler for the photo upload feature. For PDFs, the text is extracted on the server first (via `pdf-parse`) and sent as text.
+
+Anthropic also requires a one-time "use case details" form (submitted via the Bedrock console) before their models can be invoked through Bedrock at all — a separate step from IAM permissions or AWS's own model access.
 
 ---
 
@@ -170,7 +182,7 @@ recharge/                      ← monorepo root
 │   │   │   ├── checkin.ts        ← /checkin/* endpoints
 │   │   │   └── translations.ts   ← /translations/ui endpoint
 │   │   ├── services/
-│   │   │   ├── claude.ts      ← Anthropic API calls
+│   │   │   ├── claude.ts      ← AWS Bedrock calls (Claude Sonnet 4.5)
 │   │   │   └── pdfExtract.ts  ← pdf-parse wrapper
 │   │   ├── db/
 │   │   │   ├── index.ts       ← pg Pool singleton
@@ -186,10 +198,13 @@ recharge/                      ← monorepo root
 │   └── .env                   ← local dev secrets (never committed)
 │
 ├── mobile/                    ← React Native / Expo app
-│   ├── App.tsx                ← root component: loads auth from storage
+│   ├── App.tsx                ← root component: Sentry.init(), loads auth from storage
 │   ├── index.ts               ← Expo entry point (registers App component)
-│   ├── app.json               ← Expo config (bundle ID, entitlements, permissions)
+│   ├── app.json               ← Expo config (bundle ID, entitlements, permissions,
+│   │                             @sentry/react-native/expo plugin config)
+│   ├── metro.config.js        ← getSentryExpoConfig() — wires source map upload
 │   ├── eas.json               ← EAS build profiles + App Store submission config
+│   │                             (also carries EXPO_PUBLIC_SENTRY_DSN for production)
 │   ├── src/
 │   │   ├── api/               ← typed fetch wrappers for each backend route group
 │   │   │   ├── client.ts      ← base fetch wrapper with JWT + 401 refresh logic
@@ -340,7 +355,7 @@ This is the central table. The most important columns:
 
 - **`parsed_json`** (JSONB): The structured output from Claude — all medications, red flags, activity restrictions, etc. This is what the mobile app renders everywhere. It may be in a translated language if the user has selected a non-English language.
 - **`original_parsed_json`** (JSONB): Always stores the English version of the parsed output. When a user changes language, the backend translates from `original_parsed_json` (not from `parsed_json`), so if they switch from Spanish back to English, they always get the correct original text rather than a back-translation.
-- **`raw_input_url`**: Intended to hold the S3 key pointing to the original uploaded image or PDF. This is for audit trail / HIPAA purposes. It's currently populated as null in the implementation (the S3 upload step is scaffolded but not yet wired).
+- **`raw_input_url`**: Scaffolded to hold an S3 key pointing to the original uploaded image or PDF, for a future audit trail. It's never populated in the current implementation — the `INSERT` in `POST /discharge` doesn't include this column at all, so it stays `NULL`. In practice this means the app does not retain the original photo/PDF after Bedrock extracts structured data from it, which narrows the PHI footprint (matches the privacy policy's "we do not store the raw image or PDF after processing is complete").
 - **`provider_phone`**: The doctor's/clinic's phone number. This is stored in its own column (not inside `parsed_json`) so it can be easily queried, patched, and displayed without parsing the JSON blob. The backend explicitly strips `provider_phone` out of `parsed_json` before storing to avoid duplication.
 - **`discharge_date`**: The actual date of the hospital discharge, used to calculate "Day X of Recovery" on the Home screen.
 - The `'fhir'` value in the `raw_input_type` check constraint is scaffolded for future HL7 FHIR integration (receiving structured data directly from hospital EHR systems).
@@ -554,7 +569,7 @@ Fetches the most recent discharge record for the logged-in user. The `ORDER BY c
 
 #### GET /medications
 
-Joins `medications` to `discharges` on `discharge_id` and filters by `d.user_id = $1`. Orders by `d.created_at DESC, m.name` — so if a user has uploaded multiple discharges, they get the medications from the most recent one, sorted alphabetically.
+Filters to `discharge_id = (SELECT id FROM discharges WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1)` — only the user's **latest** discharge, sorted alphabetically by name. This was previously a bug: the query joined across every discharge a user had ever uploaded (only ordering by recency, not filtering by it), so re-uploading instructions left old medications visibly duplicated alongside the new ones. `GET /medications/logs` has the same latest-discharge filter for the same reason — old rows are never deleted (they remain for audit purposes), just excluded from what the app currently surfaces.
 
 #### POST /medications/:id/log
 
@@ -616,10 +631,39 @@ This is the most important service in the entire backend. Understanding it deepl
 #### The Client
 
 ```typescript
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? 'mock' });
+const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
+const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-sonnet-4-5-20250929-v1:0';
+
+export async function callClaude(params: {
+  system?: string;
+  messages: Array<{ role: 'user' | 'assistant'; content: any }>;
+  max_tokens: number;
+}): Promise<string> {
+  const response = await bedrock.send(new InvokeModelCommand({
+    modelId: MODEL_ID,
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify({
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: params.max_tokens,
+      ...(params.system && { system: params.system }),
+      messages: params.messages,
+    }),
+  }));
+  const body = JSON.parse(new TextDecoder().decode(response.body));
+  const text = body.content?.find((b: any) => b.type === 'text')?.text;
+  if (!text) throw new Error('No text content in Bedrock response');
+  return text;
+}
 ```
 
-A single Anthropic client instance is created at module load time. The `?? 'mock'` fallback means the module loads without throwing even if `ANTHROPIC_API_KEY` isn't set — but actual API calls will fail with an auth error. For local development without hitting the API, set `USE_MOCK_CLAUDE=true` in `.env`.
+A single `BedrockRuntimeClient` is created at module load time. Unlike the old Anthropic SDK client, there's no API key in this code at all — authentication is IAM-based, via the EC2 instance role's `bedrock:InvokeModel` permission (no credentials ever appear in code or environment variables). `callClaude()` is a thin wrapper both `parseDischargeInstructions` and `translateDischargeJSON` (and the `/translations/ui` route) call through, so there's exactly one place that talks to Bedrock.
+
+**Why Bedrock instead of the Anthropic API directly:** this backend used to call `@anthropic-ai/sdk` straight to `api.anthropic.com`. That works, but Anthropic's own API isn't covered by AWS's HIPAA BAA — sending discharge photos (PHI) there crosses outside the compliance boundary. AWS Bedrock hosts the same Claude models but is covered by the AWS BAA already in place, so switching the transport (not the model, not the prompts) closed that gap. The request/response shape is nearly identical to Anthropic's native API — `anthropic_version: 'bedrock-2023-05-31'` plus the same `messages` array — which is why this was a contained rewrite of one file rather than a rethink of the parsing logic.
+
+**The inference profile gotcha:** newer Claude models on Bedrock (Sonnet 4.5 included) are cross-region models that reject direct invocation by their bare model ID with `ValidationException: ... on-demand throughput isn't supported`. The fix is invoking through a cross-region **inference profile** ID instead — `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (the `us.` prefix routes across US regions) — set via the `BEDROCK_MODEL_ID` environment variable. The IAM policy also needs `bedrock:InvokeModel` scoped to `arn:aws:bedrock:*:*:inference-profile/*` in addition to `arn:aws:bedrock:*::foundation-model/*`, since invoking through a profile checks both resource types.
+
+For local development without hitting Bedrock at all, set `USE_MOCK_CLAUDE=true` in `.env`.
 
 #### The Mock System
 
@@ -1398,8 +1442,7 @@ The backend uses `@aws-sdk/client-ses` with `SendEmailCommand`. OTP emails conta
 
 ### S3
 
-**Bucket:** `curapath-raw-inputs`  
-Purpose: Store the original discharge uploads (photos/PDFs) for audit trail purposes (HIPAA requires maintaining records of PHI access and processing). The bucket stores raw uploaded files with S3-managed server-side encryption (SSE-S3). The `raw_input_url` column in the `discharges` table stores the S3 object key (not a presigned URL) — access requires AWS credentials, not just the key string.
+Beyond the bucket Elastic Beanstalk manages internally for its own deployment artifacts (`elasticbeanstalk-us-east-2-<account-id>`), there is no S3 bucket currently storing raw discharge uploads — the `raw_input_url` column exists in the schema for a future audit-trail feature but is never populated (see 5.4). Today, the original photo/PDF a user uploads exists only in-memory on the backend for the duration of one request; it's never written to disk or object storage.
 
 ---
 
@@ -1418,7 +1461,7 @@ For a software application, the technical safeguards are the primary concern.
 
 A BAA is a legal contract between a covered entity (CuraPath) and a "business associate" (AWS) that specifies how the business associate will handle PHI. AWS signed a BAA on May 26, 2026 via AWS Artifact. This is a prerequisite for HIPAA compliance — without a BAA, you cannot legally store PHI on AWS services.
 
-**What the BAA covers:** All AWS services used by CuraPath that touch PHI — RDS, S3, Elastic Beanstalk, the ALB. Notably, the Anthropic API does not have a BAA. This means technically, when discharge photos are sent to Claude, PHI may be crossing a non-BAA boundary. This is a compliance gap to address in a future version, either by using a HIPAA-covered AI service or by having users agree to specific data processing terms.
+**What the BAA covers:** All AWS services used by CuraPath that touch PHI — RDS, Elastic Beanstalk, the ALB, and (as of the Bedrock migration) AI processing itself. Discharge photos and PDFs used to be sent to Anthropic's own API (`@anthropic-ai/sdk` calling `api.anthropic.com` directly), which is **not** covered by the AWS BAA — a real compliance gap, since PHI was crossing outside the BAA boundary on every discharge upload. The backend now routes all Claude calls through **AWS Bedrock** instead (`backend/src/services/claude.ts`, using `@aws-sdk/client-bedrock-runtime`), which is covered by the AWS BAA. The request format is nearly identical to Anthropic's native API, so this closed the gap without changing the parsing logic, prompts, or model behavior.
 
 ### Encryption in Transit
 
@@ -1430,7 +1473,6 @@ All traffic between the mobile app and the backend is over HTTPS (TLS 1.2+). Thi
 ### Encryption at Rest
 
 - **RDS:** AES-256 at the storage level using AWS KMS managed key. Every file on the RDS storage volume is encrypted.
-- **S3:** Server-side encryption (SSE-S3) on the `curapath-raw-inputs` bucket.
 - **Mobile device:** iOS encrypts all app data (including AsyncStorage) using the device passcode. This is hardware-enforced on modern iPhones with the Secure Enclave.
 
 ### Access Controls
@@ -1461,7 +1503,9 @@ The website is purely static HTML/CSS/JavaScript — no build step, no framework
 - An early access email signup form (Google Form, field ID `entry.182712028`)
 - Links to the App Store (when available)
 
-`docs/privacy-policy.html` contains the full HIPAA-required privacy policy explaining what data is collected and how it's used.
+`docs/privacy-policy.html` contains the full HIPAA-required privacy policy explaining what data is collected and how it's used — including the AI Processing section, which names AWS Bedrock (not Anthropic directly) as where discharge documents are processed.
+
+`docs/support.html` is the App Store Connect "Support URL" — a FAQ plus a contact email, added for the App Store submission. Both `privacy-policy.html` and `support.html` carry a "← Back to CuraPath" link to the homepage.
 
 DNS routing:
 - Route 53 A records for `curapath.app` point to GitHub Pages' IP addresses.
@@ -1474,16 +1518,23 @@ DNS routing:
 
 ### Backend Deployment
 
-The backend is deployed to Elastic Beanstalk via the EB CLI or the AWS Console.
+The backend is deployed to Elastic Beanstalk via the EB CLI (`eb deploy`, run from `backend/`). Deploys were originally done by hand through the AWS Console (upload a zip, click through the wizard) — the EB CLI was set up specifically to make this a one-command operation.
 
-**Build step:** `npm run build` → runs `rimraf dist && tsc` → compiles TypeScript to `backend/dist/`.
+**How the build actually happens — this was a real bug, not just an inconvenience:** `dist/` is git-ignored, and by default `eb deploy` bundles whatever's in the **HEAD git commit** — so for a while, deploys were shipping no compiled code from recent commits at all; the EC2 instance kept running a stale `dist/server.js` built weeks earlier (still calling the Anthropic API directly, from before the Bedrock migration), even though the deploy itself reported success every time. The fix has two parts:
 
-**Deploy step:** `eb deploy` (from the `backend/` directory) — Beanstalk zips `dist/`, `package.json`, `Procfile`, and `.ebextensions/`, uploads to S3, and deploys to the EC2 instances.
+1. **`typescript` moved from `devDependencies` to `dependencies`** in `backend/package.json` — `NODE_ENV=production` (set via `.ebextensions/nodecommand.config`) causes `npm install` to skip devDependencies, so `tsc` was silently unavailable for any build step running server-side.
+2. **`.platform/hooks/predeploy/01_build.sh`** — a one-line `npm run build` that Elastic Beanstalk's AL2023 Node.js platform runs automatically, in `/var/app/staging`, after `npm install` but before the app starts. This guarantees the EC2 instance always compiles fresh `dist/` from whatever source was just uploaded, regardless of what's (or isn't) sitting in the deployer's local `dist/` folder.
+
+With both in place, a plain `eb deploy` reliably ships current source every time — no manual `npm run build && git add -f dist && eb deploy --staged` workaround needed (that was the emergency fix used once, before the predeploy hook existed).
 
 **Environment variables on Beanstalk:**
-All secrets (`JWT_SECRET`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, `ALLOWED_ORIGINS`) are configured in the Beanstalk environment configuration (not in code or Procfile). They appear as environment variables to the Node.js process.
+All secrets and config (`JWT_SECRET`, `DATABASE_URL`, `ALLOWED_ORIGINS`, `AWS_REGION`, `BEDROCK_MODEL_ID`) are configured in the Beanstalk environment configuration via `eb setenv` (not in code or Procfile). There is no `ANTHROPIC_API_KEY` anymore — Bedrock authenticates via the EC2 instance's IAM role, not an API key.
+
+**IAM for Bedrock:** the EC2 instance role needs an inline policy (`curapath-bedrock-invoke`) granting `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` on both `arn:aws:bedrock:*::foundation-model/*` and `arn:aws:bedrock:*:*:inference-profile/*` — the latter is easy to miss and produces a `ValidationException` about on-demand throughput if it's absent (see 5.10).
 
 **Zero-downtime deploys:** Beanstalk's rolling update policy keeps old instances running while new ones are deployed and pass health checks, then swaps traffic.
+
+**Reading production logs:** `eb logs` pulls the platform/engine log, which does *not* include Node's own `console.log`/`console.error` output. For actual application errors, pull the app's stdout log group directly: `eb logs -g /aws/elasticbeanstalk/curapath-backend-env/var/log/web.stdout.log`.
 
 ### Mobile Build and Release (EAS)
 
@@ -1512,6 +1563,8 @@ Uses the `ascAppId` from `eas.json` to upload the already-built `.ipa` to App St
 
 **`newArchEnabled: true`** in `app.json` enables React Native's "New Architecture" (Fabric renderer + TurboModules + JSI), which is the direction of RN's future and improves performance.
 
+**Sentry crash reporting:** `@sentry/react-native` is initialized in `App.tsx`, gated on `EXPO_PUBLIC_SENTRY_DSN` being set (a no-op otherwise). `sendDefaultPii: false` and `tracesSampleRate: 0` are both deliberate — discharge instructions and medication data are PHI, so crash reports carry no user identifiers, IP addresses, or usage telemetry, only the stack trace and device/OS info needed to debug a crash. `metro.config.js` wraps the Metro config in `getSentryExpoConfig()`, and `app.json`'s `@sentry/react-native/expo` plugin config names the `curapath-kf` org and `curapath-mobile` project — together these upload source maps during `eas build`, so production crash reports show real file/line/function names instead of minified bundle code. The upload itself needs `SENTRY_AUTH_TOKEN` set as an EAS secret (`eas env:create --name SENTRY_AUTH_TOKEN --visibility secret --environment production`) — without it, the upload fails silently and stack traces stay unreadable.
+
 ---
 
 ## 12. Environment Variables Reference
@@ -1525,9 +1578,10 @@ Uses the `ascAppId` from `eas.json` to upload the already-built `.ipa` to App St
 | `JWT_SECRET` | Secret for signing JWTs | `<random 64-char hex string>` |
 | `JWT_EXPIRY` | Access token lifetime | `1h` |
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://user:pass@host/db?sslmode=require` |
-| `ANTHROPIC_API_KEY` | API key for Claude | `sk-ant-...` |
+| `AWS_REGION` | Region for the Bedrock client | `us-east-1` |
+| `BEDROCK_MODEL_ID` | Bedrock inference profile ID for Claude | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` |
 | `ALLOWED_ORIGINS` | CORS whitelist | `https://api.curapath.app,http://localhost:8081` |
-| `USE_MOCK_CLAUDE` | Skip Claude API calls in dev | `true` or `false` |
+| `USE_MOCK_CLAUDE` | Skip Claude/Bedrock calls in dev | `true` or `false` |
 | `DB_HOST` | DB host (if not using DATABASE_URL) | `localhost` |
 | `DB_PORT` | DB port | `5432` |
 | `DB_NAME` | Database name | `curapath` |
@@ -1540,8 +1594,9 @@ Uses the `ascAppId` from `eas.json` to upload the already-built `.ipa` to App St
 | Variable | Description | Example |
 |---|---|---|
 | `EXPO_PUBLIC_API_URL` | Backend API base URL | `https://api.curapath.app` |
+| `EXPO_PUBLIC_SENTRY_DSN` | Sentry project DSN (public, safe to commit) | `https://...@....ingest.us.sentry.io/...` |
 
-In production EAS builds, `EXPO_PUBLIC_API_URL` is hardcoded in `eas.json` under the `production.env` section and overrides the `.env` file.
+In production EAS builds, both are set in `eas.json` under the `production.env` section and override the `.env` file. `SENTRY_AUTH_TOKEN` is a separate, build-time-only secret (not an app-bundled `EXPO_PUBLIC_*` var) — it's stored as an EAS secret and used only to upload source maps during the build, never shipped in the app itself.
 
 ---
 
@@ -1556,7 +1611,7 @@ npm install
 npm run dev           # nodemon + ts-node, auto-restarts on file changes
 ```
 
-Set `USE_MOCK_CLAUDE=true` to skip Claude API calls. Set `DATABASE_URL` to point at a local Postgres instance.
+Set `USE_MOCK_CLAUDE=true` to skip Bedrock calls. Set `DATABASE_URL` to point at a local Postgres instance.
 
 ### Run the mobile app locally
 
@@ -1585,9 +1640,10 @@ The project currently uses manual SQL migrations. Write the `ALTER TABLE ...` or
 
 ```bash
 cd backend
-npm run build         # compiles TypeScript to dist/
-eb deploy             # upload and deploy to Beanstalk
+eb deploy              # the predeploy hook rebuilds dist/ on the instance itself
 ```
+
+A local `npm run build` first is no longer required for the deploy to be correct (the `.platform/hooks/predeploy/01_build.sh` hook does this server-side), but running it locally first is still good practice to catch TypeScript errors before they hit Beanstalk.
 
 ### Build and submit mobile app to TestFlight
 
@@ -1609,7 +1665,10 @@ curl https://api.curapath.app/health
 
 In the AWS Elastic Beanstalk console → Environment → Logs → Request last 100 lines.
 
-Or via EB CLI: `eb logs`
+Or via EB CLI: `eb logs` (platform/engine log only — deploy events, nginx, health checks). For the Node app's own `console.log`/`console.error` output (e.g. an actual `Discharge parse error` stack trace), pull the app log group specifically:
+```bash
+eb logs -g /aws/elasticbeanstalk/curapath-backend-env/var/log/web.stdout.log
+```
 
 ### Rotate JWT_SECRET
 
@@ -1644,7 +1703,7 @@ Both `medication_logs` and `check_ins` use upsert patterns. This handles mobile 
 
 ### No Client-Side Discharge Parsing
 
-The mobile app never tries to parse discharge documents itself. All parsing happens on the server. This is important for two reasons: (1) the Anthropic API key is kept server-side (never in the app bundle), and (2) the server-side parsing can be updated (system prompt changes, model upgrades) without requiring an app update.
+The mobile app never tries to parse discharge documents itself. All parsing happens on the server. This is important for two reasons: (1) Bedrock credentials never exist outside the EC2 instance role — there's no API key of any kind in the app bundle to extract, and (2) the server-side parsing can be updated (system prompt changes, model upgrades) without requiring an app update.
 
 ### The `isLoading` Pattern in `authStore`
 
@@ -1677,4 +1736,4 @@ Unlike `authStore`, `dischargeStore` does not write to AsyncStorage. The dischar
 
 ---
 
-*This document reflects the CuraPath codebase as of August 2026 (post-TestFlight, pre-App Store submission). All file paths are relative to the repository root at `/Users/ksp/Desktop/recharge/`.*
+*This document reflects the CuraPath codebase as of September 2026 (TestFlight-tested, App Store submission in progress). All file paths are relative to the repository root at `/Users/ksp/Desktop/recharge/`.*
