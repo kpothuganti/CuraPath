@@ -24,6 +24,28 @@ function format12hr(time: string): string {
   return `${hour}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+function startOfLocalDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Calendar days since discharge, not full-24-hour elapsed periods — so "Day 2"
+// starts at local midnight the day after discharge, not 24 hours after the
+// exact upload timestamp. discharge_date is a plain calendar date (no time
+// component), so it's read via UTC getters to recover the date the user
+// actually picked regardless of the viewer's timezone; created_at is a real
+// timestamp, so it's localized to the user's own calendar day instead.
+function calendarDaysSince(discharge: { discharge_date: string | null; created_at: string }): number {
+  let anchor: Date;
+  if (discharge.discharge_date) {
+    const raw = new Date(discharge.discharge_date);
+    anchor = new Date(raw.getUTCFullYear(), raw.getUTCMonth(), raw.getUTCDate());
+  } else {
+    anchor = startOfLocalDay(new Date(discharge.created_at));
+  }
+  const today = startOfLocalDay(new Date());
+  return Math.max(0, Math.round((today.getTime() - anchor.getTime()) / 86400000));
+}
+
 function parseRecoveryDays(timeframe: string | undefined): number {
   if (!timeframe) return 30;
   const s = timeframe.toLowerCase();
@@ -97,9 +119,7 @@ export default function HomeScreen() {
   }
 
   const restrictions = discharge?.parsed_json?.activity_restrictions ?? [];
-  const daysSince = discharge
-    ? Math.floor((Date.now() - new Date(discharge.created_at).getTime()) / 86400000)
-    : 0;
+  const daysSince = discharge ? calendarDaysSince(discharge) : 0;
   const totalRecoveryDays = parseRecoveryDays(
     discharge?.parsed_json?.follow_up_appointments?.[0]?.timeframe
   );

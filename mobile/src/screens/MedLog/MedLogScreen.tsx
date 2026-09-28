@@ -34,7 +34,8 @@ const STATUS_COLOR: Record<DoseStatus, string> = {
 
 function buildTodayDoses(
   medications: MedicationRecord[],
-  logs: (MedicationLog & { medication_name?: string; dose?: string })[]
+  logs: (MedicationLog & { medication_name?: string; dose?: string })[],
+  dischargeCreatedAt: Date | null
 ): DoseRow[] {
   const todayStr = new Date().toDateString();
   const todayLogs = logs.filter(
@@ -48,6 +49,12 @@ function buildTodayDoses(
       const [h, m] = time.split(':').map(Number);
       const scheduled = new Date();
       scheduled.setHours(h, m, 0, 0);
+
+      // Don't show a dose as missed (or at all) if its scheduled time fell
+      // before the user even had this medication schedule — e.g. uploading
+      // discharge paperwork at 9pm shouldn't retroactively mark an 8am dose
+      // as missed on day one.
+      if (dischargeCreatedAt && scheduled < dischargeCreatedAt) continue;
 
       const log = todayLogs.find((l) => {
         const lt = new Date(l.scheduled_time);
@@ -92,7 +99,7 @@ function buildHistoryDoses(
 }
 
 export default function MedLogScreen() {
-  const { medications } = dischargeStore();
+  const { discharge, medications } = dischargeStore();
   const [logs, setLogs] = useState<(MedicationLog & { medication_name?: string; dose?: string })[]>([]);
   const [meds, setMeds] = useState<MedicationRecord[]>(medications);
   const [loading, setLoading] = useState(true);
@@ -118,7 +125,10 @@ export default function MedLogScreen() {
     }, [])
   );
 
-  const todayDoses = useMemo(() => buildTodayDoses(meds, logs), [meds, logs]);
+  const todayDoses = useMemo(
+    () => buildTodayDoses(meds, logs, discharge ? new Date(discharge.created_at) : null),
+    [meds, logs, discharge?.created_at]
+  );
   const historySections = useMemo(() => buildHistoryDoses(logs), [logs]);
 
   const sections = [
