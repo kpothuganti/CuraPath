@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -10,6 +11,21 @@ import { useTheme } from '../../hooks/useTheme';
 import { Ionicons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Upload'>;
+
+// Modern phone cameras produce images far larger than needed for text
+// extraction — a full-resolution photo held as a base64 string in JS memory
+// while waiting on the parse request risks an out-of-memory crash. Resizing
+// to a max dimension here keeps files small (still plenty sharp for OCR)
+// without the picker itself needing to know about this constraint.
+async function resizeForUpload(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: 2000 } }],
+    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+  );
+  if (!result.base64) throw new Error('Could not process the selected photo.');
+  return result.base64;
+}
 
 export default function UploadScreen({ navigation }: Props) {
   const C = useTheme();
@@ -24,13 +40,14 @@ export default function UploadScreen({ navigation }: Props) {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      base64: true,
     });
-    if (!result.canceled && result.assets[0].base64) {
-      navigation.replace('Processing', {
-        type: 'photo',
-        base64: result.assets[0].base64,
-      });
+    if (!result.canceled) {
+      try {
+        const base64 = await resizeForUpload(result.assets[0].uri);
+        navigation.replace('Processing', { type: 'photo', base64 });
+      } catch (err: any) {
+        Alert.alert('Could not process photo', err.message ?? 'Please try again.');
+      }
     }
   }
 
@@ -43,13 +60,14 @@ export default function UploadScreen({ navigation }: Props) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      base64: true,
     });
-    if (!result.canceled && result.assets[0].base64) {
-      navigation.replace('Processing', {
-        type: 'photo',
-        base64: result.assets[0].base64,
-      });
+    if (!result.canceled) {
+      try {
+        const base64 = await resizeForUpload(result.assets[0].uri);
+        navigation.replace('Processing', { type: 'photo', base64 });
+      } catch (err: any) {
+        Alert.alert('Could not process photo', err.message ?? 'Please try again.');
+      }
     }
   }
 
