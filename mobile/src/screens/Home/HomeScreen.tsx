@@ -191,7 +191,7 @@ export default function HomeScreen() {
             <View style={styles.checkinText}>
               <Text style={styles.checkinLabel}>{t('howAreYouFeeling')}</Text>
               <Text style={styles.checkinSub}>
-                {t('questionsCount', { n: discharge.parsed_json.red_flags.length })}
+                {t('questionsCount', { n: (discharge.parsed_json.red_flags ?? []).length })}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.accent} />

@@ -1,6 +1,26 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DischargeJSON } from '../types';
 
+// The system prompt asks Claude to always return [] for empty fields, but
+// that's not a runtime guarantee — Bedrock's output is non-deterministic,
+// and a missing/null array field here has previously crashed mobile screens
+// that assumed these fields were always present. Normalize once, at the
+// source, so every client and every future reader of stored discharge data
+// gets a consistent shape regardless of what any individual model call did.
+function normalizeDischargeJSON(parsed: any): DischargeJSON {
+  return {
+    ...parsed,
+    medications: Array.isArray(parsed.medications) ? parsed.medications : [],
+    activity_restrictions: Array.isArray(parsed.activity_restrictions) ? parsed.activity_restrictions : [],
+    red_flags: Array.isArray(parsed.red_flags) ? parsed.red_flags : [],
+    follow_up_appointments: Array.isArray(parsed.follow_up_appointments) ? parsed.follow_up_appointments : [],
+    diet_restrictions: Array.isArray(parsed.diet_restrictions) ? parsed.diet_restrictions : [],
+    wound_care: Array.isArray(parsed.wound_care) ? parsed.wound_care : [],
+    sleeping_instructions: Array.isArray(parsed.sleeping_instructions) ? parsed.sleeping_instructions : [],
+    exercises: Array.isArray(parsed.exercises) ? parsed.exercises : [],
+  };
+}
+
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION ?? 'us-east-1' });
 const MODEL_ID = process.env.BEDROCK_MODEL_ID ?? 'anthropic.claude-sonnet-4-5-20250929-v1:0';
 
@@ -156,7 +176,7 @@ export async function parseDischargeInstructions(
     if (parsed.parse_error === 'illegible') {
       throw new Error('The photo was too blurry or unclear to read. Please retake in good lighting with the text fully visible.');
     }
-    return parsed as DischargeJSON;
+    return normalizeDischargeJSON(parsed);
   } catch (e: any) {
     if (e.message.startsWith('The photo was')) throw e;
     throw new Error(`Claude returned invalid JSON: ${rawText.slice(0, 200)}`);
@@ -194,5 +214,5 @@ ${JSON.stringify(json)}`,
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('No JSON in translation response');
-  return JSON.parse(raw.slice(start, end + 1)) as DischargeJSON;
+  return normalizeDischargeJSON(JSON.parse(raw.slice(start, end + 1)));
 }

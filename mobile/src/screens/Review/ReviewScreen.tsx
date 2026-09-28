@@ -56,7 +56,16 @@ export default function ReviewScreen({ navigation, route }: Props) {
     navigation.replace('Upload');
   }
 
-  const { medications, activity_restrictions, red_flags, diet_restrictions, wound_care, follow_up_appointments, sleeping_instructions, exercises } = parsedJson;
+  // Bedrock's parsing is non-deterministic — the system prompt asks it to
+  // always return [] for empty fields, but that's not a runtime guarantee.
+  const medications = parsedJson.medications ?? [];
+  const activity_restrictions = parsedJson.activity_restrictions ?? [];
+  const red_flags = parsedJson.red_flags ?? [];
+  const diet_restrictions = parsedJson.diet_restrictions ?? [];
+  const wound_care = parsedJson.wound_care ?? [];
+  const follow_up_appointments = parsedJson.follow_up_appointments ?? [];
+  const sleeping_instructions = parsedJson.sleeping_instructions ?? [];
+  const exercises = parsedJson.exercises ?? [];
 
   return (
     <SafeAreaView style={styles.container}>

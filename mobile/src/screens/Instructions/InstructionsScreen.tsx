@@ -30,6 +30,18 @@ export default function InstructionsScreen() {
     );
   }
 
+  // Bedrock's parsing is non-deterministic — the system prompt asks it to
+  // always return [] for empty fields, but that's not a runtime guarantee.
+  // A null/missing field here previously crashed the screen outright.
+  const redFlags = p.red_flags ?? [];
+  const medications = p.medications ?? [];
+  const activityRestrictions = p.activity_restrictions ?? [];
+  const followUpAppointments = p.follow_up_appointments ?? [];
+  const dietRestrictions = p.diet_restrictions ?? [];
+  const woundCare = p.wound_care ?? [];
+  const sleepingInstructions = p.sleeping_instructions ?? [];
+  const exercises = p.exercises ?? [];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -40,19 +52,19 @@ export default function InstructionsScreen() {
           </Text>
         </View>
 
-        {p.red_flags.length > 0 && (
+        {redFlags.length > 0 && (
           <Section title={t('warningSigns')} icon="warning-outline" styles={styles}>
             <View style={styles.pills}>
-              {p.red_flags.map((f, i) => (
+              {redFlags.map((f, i) => (
                 <Text key={i} style={[styles.pill, styles.pillRed]}>{f}</Text>
               ))}
             </View>
           </Section>
         )}
 
-        {p.medications.length > 0 && (
+        {medications.length > 0 && (
           <Section title={t('medicationsSection')} icon="medical-outline" styles={styles}>
-            {p.medications.map((m, i) => (
+            {medications.map((m, i) => (
               <View key={i} style={styles.medRow}>
                 <Text style={styles.medName}>{m.name} {m.dose}</Text>
                 <Text style={styles.medDetail}>{cap(m.frequency)} - {m.times.map(t => { const [h, min] = t.split(':').map(Number); return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }).join(', ')} - {m.instructions}</Text>
@@ -61,19 +73,19 @@ export default function InstructionsScreen() {
           </Section>
         )}
 
-        {p.activity_restrictions.length > 0 && (
+        {activityRestrictions.length > 0 && (
           <Section title={t('activityRestrictionsSection')} icon="walk-outline" styles={styles}>
             <View style={styles.pills}>
-              {p.activity_restrictions.map((r, i) => (
+              {activityRestrictions.map((r, i) => (
                 <Text key={i} style={styles.pill}>{r}</Text>
               ))}
             </View>
           </Section>
         )}
 
-        {p.follow_up_appointments.length > 0 && (
+        {followUpAppointments.length > 0 && (
           <Section title={t('followUpSection')} icon="calendar-outline" styles={styles}>
-            {p.follow_up_appointments.map((a, i) => (
+            {followUpAppointments.map((a, i) => (
               <View key={i} style={styles.apptRow}>
                 <Text style={styles.apptType}>{a.type}:</Text>
                 <Text style={styles.apptTime}>{cap(a.timeframe)}</Text>
@@ -82,39 +94,39 @@ export default function InstructionsScreen() {
           </Section>
         )}
 
-        {p.diet_restrictions.length > 0 && (
+        {dietRestrictions.length > 0 && (
           <Section title={t('dietSection')} icon="restaurant-outline" styles={styles}>
             <View style={styles.pills}>
-              {p.diet_restrictions.map((d, i) => (
+              {dietRestrictions.map((d, i) => (
                 <Text key={i} style={[styles.pill, styles.pillGreen]}>{d}</Text>
               ))}
             </View>
           </Section>
         )}
 
-        {p.wound_care.length > 0 && (
+        {woundCare.length > 0 && (
           <Section title={t('woundCareSection')} icon="bandage-outline" styles={styles}>
             <View style={styles.pills}>
-              {p.wound_care.map((w, i) => (
+              {woundCare.map((w, i) => (
                 <Text key={i} style={styles.pill}>{w}</Text>
               ))}
             </View>
           </Section>
         )}
 
-        {p.sleeping_instructions && p.sleeping_instructions.length > 0 && (
+        {sleepingInstructions.length > 0 && (
           <Section title={t('sleepingSection')} icon="moon-outline" styles={styles}>
             <View style={styles.pills}>
-              {p.sleeping_instructions.map((s, i) => (
+              {sleepingInstructions.map((s, i) => (
                 <Text key={i} style={styles.pill}>{s}</Text>
               ))}
             </View>
           </Section>
         )}
 
-        {p.exercises && p.exercises.length > 0 && (
+        {exercises.length > 0 && (
           <Section title={t('exercisesSection')} icon="barbell-outline" styles={styles}>
-            {p.exercises.map((e, i) => {
+            {exercises.map((e, i) => {
               const colonIdx = e.indexOf(':');
               const label = colonIdx === -1 ? e : e.slice(0, colonIdx);
               const rest = colonIdx === -1 ? '' : e.slice(colonIdx);

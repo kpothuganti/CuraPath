@@ -50,16 +50,17 @@ function buildTodayDoses(
       const scheduled = new Date();
       scheduled.setHours(h, m, 0, 0);
 
-      // Don't show a dose as missed (or at all) if its scheduled time fell
-      // before the user even had this medication schedule — e.g. uploading
-      // discharge paperwork at 9pm shouldn't retroactively mark an 8am dose
-      // as missed on day one.
-      if (dischargeCreatedAt && scheduled < dischargeCreatedAt) continue;
-
       const log = todayLogs.find((l) => {
         const lt = new Date(l.scheduled_time);
         return l.medication_id === med.id && lt.getHours() === h && lt.getMinutes() === m;
       });
+
+      // Don't show a dose as missed (or at all) if its scheduled time fell
+      // before the user even had this medication schedule — e.g. uploading
+      // discharge paperwork at 9pm shouldn't retroactively mark an 8am dose
+      // as missed on day one. But a dose that was actually logged (taken or
+      // skipped) should always show, regardless of timing.
+      if (!log && dischargeCreatedAt && scheduled < dischargeCreatedAt) continue;
 
       rows.push({
         id: `${med.id}_${time}`,
