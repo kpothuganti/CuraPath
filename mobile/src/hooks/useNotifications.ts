@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MedicationRecord } from '../types';
 import { getPreferredLanguage } from './useLanguage';
+import { getMedicationLogs } from '../api/medications';
 
 const EN_NOTIF_STRINGS = {
   medTitle: 'Time to take your medications',
@@ -52,8 +53,15 @@ const CHECKIN_NOTIF_ID = 'curapath_checkin_daily'; // fixed identifier — resch
 const NOTIF_ID_KEY = 'checkin_notif_id'; // kept for legacy cleanup only
 const NOTIF_TIME_KEY = 'checkin_time';
 const NOTIF_ENABLED_KEY = 'checkin_enabled';
-const MED_NOTIF_IDS_KEY = 'med_notif_ids';
+const MED_NOTIF_IDS_KEY = 'med_notif_ids'; // recurring daily "time to take" reminders only
+const MED_NUDGE_MAP_KEY = 'med_nudge_map'; // today's cancellable nudges, keyed by time
 const MED_NOTIF_ENABLED_KEY = 'med_notif_enabled';
+
+interface NudgeEntry {
+  id: string;
+  dateStr: string; // guards against a stale entry surviving into a new day
+  medIds: string[];
+}
 
 export interface CheckInNotifSettings {
   enabled: boolean;
@@ -123,7 +131,7 @@ export async function saveCheckInNotifSettings(settings: CheckInNotifSettings, m
   ]);
   // Nuclear cancel — wipes every scheduled notification to guarantee no orphans survive
   await Notifications.cancelAllScheduledNotificationsAsync();
-  await AsyncStorage.multiRemove([NOTIF_ID_KEY, MED_NOTIF_IDS_KEY]);
+  await AsyncStorage.multiRemove([NOTIF_ID_KEY, MED_NOTIF_IDS_KEY, MED_NUDGE_MAP_KEY]);
   // Reschedule check-in if enabled
   if (settings.enabled) {
     await scheduleCheckInReminder(settings.hour, settings.minute);
@@ -151,6 +159,17 @@ export async function setMedNotifEnabled(enabled: boolean, medications: Medicati
   }
 }
 
+function medTimeMap(medications: MedicationRecord[]): Map<string, MedicationRecord[]> {
+  const timeMap = new Map<string, MedicationRecord[]>();
+  for (const med of medications) {
+    for (const time of med.times) {
+      if (!timeMap.has(time)) timeMap.set(time, []);
+      timeMap.get(time)!.push(med);
+    }
+  }
+  return timeMap;
+}
+
 export async function scheduleMedReminders(medications: MedicationRecord[]): Promise<void> {
   await cancelAllMedReminders();
 
@@ -163,19 +182,10 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
   const strings = await getNotifStrings();
   const ids: string[] = [];
 
-  const timeMap = new Map<string, MedicationRecord[]>();
-  for (const med of medications) {
-    for (const time of med.times) {
-      if (!timeMap.has(time)) timeMap.set(time, []);
-      timeMap.get(time)!.push(med);
-    }
-  }
-
-  for (const [time, meds] of timeMap) {
+  for (const [time, meds] of medTimeMap(medications)) {
     const [hourStr, minuteStr] = time.split(':');
     const hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr, 10);
-
     const medList = meds.map((m) => `${m.name} ${m.dose}`).join(' · ');
 
     const reminderId = await Notifications.scheduleNotificationAsync({
@@ -192,10 +202,62 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
       },
     });
     ids.push(reminderId);
+  }
 
+  await AsyncStorage.setItem(MED_NOTIF_IDS_KEY, JSON.stringify(ids));
+
+  // Nudges are scheduled separately (not recurring) so a logged dose can
+  // cancel just today's nudge without affecting tomorrow's.
+  await refreshTodayNudges(medications);
+}
+
+// A "did you take it?" nudge fires 30 minutes after a dose time, but only if
+// that dose hasn't actually been logged. Local notifications can't be
+// cancelled per-occurrence of a recurring trigger — cancelling by ID kills
+// the whole daily series — so nudges are scheduled fresh, one day at a time,
+// as one-shot notifications for today only. Call this once per day (e.g. on
+// app open) to keep today's window populated; cancelNudgeIfComplete handles
+// suppressing one when its doses get logged.
+export async function refreshTodayNudges(medications: MedicationRecord[]): Promise<void> {
+  // Clear whatever was scheduled for a previous day before recomputing.
+  await cancelAllNudges();
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') return;
+
+  const strings = await getNotifStrings();
+  const todayStr = new Date().toDateString();
+  const now = new Date();
+
+  const logsRes = await getMedicationLogs(1);
+  const takenToday = new Set(
+    logsRes.data
+      .filter((l) => !l.skipped && l.taken_at && new Date(l.taken_at).toDateString() === todayStr)
+      .map((l) => {
+        const t = new Date(l.scheduled_time);
+        const hh = String(t.getHours()).padStart(2, '0');
+        const mm = String(t.getMinutes()).padStart(2, '0');
+        return `${l.medication_id}_${hh}:${mm}`;
+      })
+  );
+
+  const nudgeMap: Record<string, NudgeEntry> = {};
+
+  for (const [time, meds] of medTimeMap(medications)) {
+    const allTaken = meds.every((m) => takenToday.has(`${m.id}_${time}`));
+    if (allTaken) continue; // already handled — no nudge needed
+
+    const [hourStr, minuteStr] = time.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
     const nudgeMinute = (minute + 30) % 60;
     const nudgeHour = minute + 30 >= 60 ? (hour + 1) % 24 : hour;
 
+    const nudgeDate = new Date();
+    nudgeDate.setHours(nudgeHour, nudgeMinute, 0, 0);
+    if (nudgeDate <= now) continue; // this dose's nudge window already passed today
+
+    const medList = meds.map((m) => `${m.name} ${m.dose}`).join(' · ');
     const nudgeId = await Notifications.scheduleNotificationAsync({
       content: {
         title: strings.medNudgeTitle,
@@ -203,16 +265,42 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
         data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
         interruptionLevel: 'timeSensitive',
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: nudgeHour,
-        minute: nudgeMinute,
-      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: nudgeDate },
     });
-    ids.push(nudgeId);
+
+    nudgeMap[time] = { id: nudgeId, dateStr: todayStr, medIds: meds.map((m) => m.id) };
   }
 
-  await AsyncStorage.setItem(MED_NOTIF_IDS_KEY, JSON.stringify(ids));
+  await AsyncStorage.setItem(MED_NUDGE_MAP_KEY, JSON.stringify(nudgeMap));
+}
+
+// Called after logging a dose as taken — cancels today's nudge for that
+// time slot once every medication scheduled at that time has been logged.
+export async function cancelNudgeIfComplete(time: string, takenKeys: Set<string>): Promise<void> {
+  const stored = await AsyncStorage.getItem(MED_NUDGE_MAP_KEY);
+  if (!stored) return;
+  const nudgeMap: Record<string, NudgeEntry> = JSON.parse(stored);
+
+  const entry = nudgeMap[time];
+  if (!entry || entry.dateStr !== new Date().toDateString()) return;
+
+  const allTaken = entry.medIds.every((medId) => takenKeys.has(`${medId}_${time}`));
+  if (!allTaken) return;
+
+  await Notifications.cancelScheduledNotificationAsync(entry.id).catch(() => {});
+  delete nudgeMap[time];
+  await AsyncStorage.setItem(MED_NUDGE_MAP_KEY, JSON.stringify(nudgeMap));
+}
+
+async function cancelAllNudges(): Promise<void> {
+  const stored = await AsyncStorage.getItem(MED_NUDGE_MAP_KEY);
+  if (stored) {
+    const nudgeMap: Record<string, NudgeEntry> = JSON.parse(stored);
+    await Promise.all(
+      Object.values(nudgeMap).map((entry) => Notifications.cancelScheduledNotificationAsync(entry.id).catch(() => {}))
+    );
+    await AsyncStorage.removeItem(MED_NUDGE_MAP_KEY);
+  }
 }
 
 export async function cancelAllMedReminders(): Promise<void> {
@@ -222,4 +310,5 @@ export async function cancelAllMedReminders(): Promise<void> {
     await Promise.all(ids.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
     await AsyncStorage.removeItem(MED_NOTIF_IDS_KEY);
   }
+  await cancelAllNudges();
 }

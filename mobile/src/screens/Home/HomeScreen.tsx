@@ -8,6 +8,7 @@ import { authStore } from '../../store/authStore';
 import { getLatestDischarge } from '../../api/discharge';
 import { getMedications, logMedication, getMedicationLogs } from '../../api/medications';
 import { getTodayCheckIn } from '../../api/checkin';
+import { getMedNotifEnabled, refreshTodayNudges, cancelNudgeIfComplete } from '../../hooks/useNotifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { MedicationRecord } from '../../types';
 import Disclaimer from '../../components/Disclaimer';
@@ -102,6 +103,9 @@ export default function HomeScreen() {
         }
         const m = await getMedications();
         setMedications(m.data);
+        if (await getMedNotifEnabled()) {
+          refreshTodayNudges(m.data).catch(() => {});
+        }
         const logs = await getMedicationLogs(1);
         const todayStr = new Date().toDateString();
         const taken = new Set(
@@ -131,7 +135,9 @@ export default function HomeScreen() {
     const [h, m] = time.split(':');
     today.setHours(Number(h), Number(m), 0, 0);
     await logMedication(med.id, today.toISOString(), action);
-    setTakenKeys((prev) => new Set(prev).add(`${med.id}_${time}`));
+    const updated = new Set(takenKeys).add(`${med.id}_${time}`);
+    setTakenKeys(updated);
+    cancelNudgeIfComplete(time, updated).catch(() => {});
   }
 
   const restrictions = asStringArray(discharge?.parsed_json?.activity_restrictions);
