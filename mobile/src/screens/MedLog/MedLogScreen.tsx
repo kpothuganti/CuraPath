@@ -19,6 +19,13 @@ interface DoseRow {
   status: DoseStatus;
 }
 
+// Bedrock's parsing is non-deterministic — a medication's times has come
+// back as a bare string before instead of string[], which crashes this
+// screen since a string has .length but not the array behavior used below.
+function asArray<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
+}
+
 function getStatus(time: Date, log?: MedicationLog): DoseStatus {
   if (log?.skipped) return 'skipped';
   if (log?.taken_at) return 'taken';
@@ -44,7 +51,8 @@ function buildTodayDoses(
 
   const rows: DoseRow[] = [];
   for (const med of medications) {
-    const times = med.times.length > 0 ? med.times : ['08:00'];
+    const medTimes = asArray<string>(med.times);
+    const times = medTimes.length > 0 ? medTimes : ['08:00'];
     for (const time of times) {
       const [h, m] = time.split(':').map(Number);
       const scheduled = new Date();

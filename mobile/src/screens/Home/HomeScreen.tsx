@@ -24,6 +24,22 @@ function format12hr(time: string): string {
   return `${hour}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+// Bedrock's parsing is non-deterministic — it's returned a bare string
+// instead of string[] before (e.g. sleeping_instructions as one paragraph),
+// which crashes a screen outright since a string has .length but not .map().
+// Checking actual array-ness (not just null) guards against any field shape.
+function asArray<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
+}
+
+// Plain string-list fields: if Bedrock returns one prose string instead of
+// string[], keep it as a single item rather than silently dropping content.
+function asStringArray(v: unknown): string[] {
+  return Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === 'string')
+    : typeof v === 'string' && v.trim() ? [v] : [];
+}
+
 function startOfLocalDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -118,7 +134,7 @@ export default function HomeScreen() {
     setTakenKeys((prev) => new Set(prev).add(`${med.id}_${time}`));
   }
 
-  const restrictions = discharge?.parsed_json?.activity_restrictions ?? [];
+  const restrictions = asStringArray(discharge?.parsed_json?.activity_restrictions);
   const daysSince = discharge ? calendarDaysSince(discharge) : 0;
   const totalRecoveryDays = parseRecoveryDays(
     discharge?.parsed_json?.follow_up_appointments?.[0]?.timeframe
@@ -191,7 +207,7 @@ export default function HomeScreen() {
             <View style={styles.checkinText}>
               <Text style={styles.checkinLabel}>{t('howAreYouFeeling')}</Text>
               <Text style={styles.checkinSub}>
-                {t('questionsCount', { n: (discharge.parsed_json.red_flags ?? []).length })}
+                {t('questionsCount', { n: asStringArray(discharge.parsed_json.red_flags).length })}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.accent} />
@@ -212,7 +228,7 @@ export default function HomeScreen() {
                     <Text style={styles.medName}>{med.name} {med.dose}</Text>
                     <Text style={styles.medDetail}>{translatedInstructions}</Text>
                     <View style={styles.medTimesRow}>
-                      {(med.times.length > 0 ? med.times : ['08:00']).map((time) => {
+                      {(() => { const times = asArray<string>(med.times); return times.length > 0 ? times : ['08:00']; })().map((time) => {
                         const key = `${med.id}_${time}`;
                         const taken = takenKeys.has(key);
                         return taken ? (

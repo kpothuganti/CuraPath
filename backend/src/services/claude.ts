@@ -1,23 +1,38 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DischargeJSON } from '../types';
 
-// The system prompt asks Claude to always return [] for empty fields, but
-// that's not a runtime guarantee — Bedrock's output is non-deterministic,
-// and a missing/null array field here has previously crashed mobile screens
-// that assumed these fields were always present. Normalize once, at the
-// source, so every client and every future reader of stored discharge data
-// gets a consistent shape regardless of what any individual model call did.
+// The system prompt asks Claude to always return an array for these fields,
+// but that's not a runtime guarantee — Bedrock's output is non-deterministic
+// and has returned a bare string instead of string[] (e.g. sleeping
+// instructions as one paragraph), which crashed mobile screens that assumed
+// these fields were always arrays. Normalize once, at the source, so every
+// client and every future reader of stored discharge data gets a consistent
+// shape regardless of what any individual model call did.
+//
+// Plain string-list fields get a stray string wrapped as a single item
+// rather than discarded, to preserve real medical content. medications and
+// follow_up_appointments are object arrays, so a wayward string there can't
+// be salvaged the same way — falls back to [].
+function asStringArray(v: unknown): string[] {
+  return Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === 'string')
+    : typeof v === 'string' && v.trim() ? [v] : [];
+}
+
 function normalizeDischargeJSON(parsed: any): DischargeJSON {
+  const medications = Array.isArray(parsed.medications)
+    ? parsed.medications.map((m: any) => ({ ...m, times: asStringArray(m?.times) }))
+    : [];
   return {
     ...parsed,
-    medications: Array.isArray(parsed.medications) ? parsed.medications : [],
-    activity_restrictions: Array.isArray(parsed.activity_restrictions) ? parsed.activity_restrictions : [],
-    red_flags: Array.isArray(parsed.red_flags) ? parsed.red_flags : [],
+    medications,
+    activity_restrictions: asStringArray(parsed.activity_restrictions),
+    red_flags: asStringArray(parsed.red_flags),
     follow_up_appointments: Array.isArray(parsed.follow_up_appointments) ? parsed.follow_up_appointments : [],
-    diet_restrictions: Array.isArray(parsed.diet_restrictions) ? parsed.diet_restrictions : [],
-    wound_care: Array.isArray(parsed.wound_care) ? parsed.wound_care : [],
-    sleeping_instructions: Array.isArray(parsed.sleeping_instructions) ? parsed.sleeping_instructions : [],
-    exercises: Array.isArray(parsed.exercises) ? parsed.exercises : [],
+    diet_restrictions: asStringArray(parsed.diet_restrictions),
+    wound_care: asStringArray(parsed.wound_care),
+    sleeping_instructions: asStringArray(parsed.sleeping_instructions),
+    exercises: asStringArray(parsed.exercises),
   };
 }
 

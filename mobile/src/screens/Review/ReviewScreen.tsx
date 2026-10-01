@@ -57,15 +57,26 @@ export default function ReviewScreen({ navigation, route }: Props) {
   }
 
   // Bedrock's parsing is non-deterministic — the system prompt asks it to
-  // always return [] for empty fields, but that's not a runtime guarantee.
-  const medications = parsedJson.medications ?? [];
-  const activity_restrictions = parsedJson.activity_restrictions ?? [];
-  const red_flags = parsedJson.red_flags ?? [];
-  const diet_restrictions = parsedJson.diet_restrictions ?? [];
-  const wound_care = parsedJson.wound_care ?? [];
-  const follow_up_appointments = parsedJson.follow_up_appointments ?? [];
-  const sleeping_instructions = parsedJson.sleeping_instructions ?? [];
-  const exercises = parsedJson.exercises ?? [];
+  // always return an array for these fields, but that's not a runtime
+  // guarantee. It's returned a bare string instead of string[] before
+  // (e.g. sleeping_instructions as one paragraph), which crashes a screen
+  // outright since a string has .length but not .map(). Checking actual
+  // array-ness (not just null) guards against any field shape.
+  const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  // Plain string-list fields: if Bedrock returns one prose string instead of
+  // string[], keep it as a single item rather than silently dropping real
+  // medical content (medications/appointments are object arrays, so a
+  // wayward string there can't be salvaged the same way — falls back to []).
+  const asStringArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : typeof v === 'string' && v.trim() ? [v] : [];
+  const medications = asArray<typeof parsedJson.medications[number]>(parsedJson.medications);
+  const activity_restrictions = asStringArray(parsedJson.activity_restrictions);
+  const red_flags = asStringArray(parsedJson.red_flags);
+  const diet_restrictions = asStringArray(parsedJson.diet_restrictions);
+  const wound_care = asStringArray(parsedJson.wound_care);
+  const follow_up_appointments = asArray<typeof parsedJson.follow_up_appointments[number]>(parsedJson.follow_up_appointments);
+  const sleeping_instructions = asStringArray(parsedJson.sleeping_instructions);
+  const exercises = asStringArray(parsedJson.exercises);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -84,8 +95,8 @@ export default function ReviewScreen({ navigation, route }: Props) {
               <View key={i} style={styles.card}>
                 <Text style={styles.cardTitle}>{med.name} — {med.dose}</Text>
                 <Text style={styles.cardDetail}>{med.frequency}</Text>
-                {med.times.length > 0 && (
-                  <Text style={styles.cardMeta}>Times: {med.times.join(', ')}</Text>
+                {asArray<string>(med.times).length > 0 && (
+                  <Text style={styles.cardMeta}>Times: {asArray<string>(med.times).join(', ')}</Text>
                 )}
                 {med.instructions ? (
                   <Text style={styles.cardMeta}>{med.instructions}</Text>

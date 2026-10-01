@@ -31,16 +31,26 @@ export default function InstructionsScreen() {
   }
 
   // Bedrock's parsing is non-deterministic — the system prompt asks it to
-  // always return [] for empty fields, but that's not a runtime guarantee.
-  // A null/missing field here previously crashed the screen outright.
-  const redFlags = p.red_flags ?? [];
-  const medications = p.medications ?? [];
-  const activityRestrictions = p.activity_restrictions ?? [];
-  const followUpAppointments = p.follow_up_appointments ?? [];
-  const dietRestrictions = p.diet_restrictions ?? [];
-  const woundCare = p.wound_care ?? [];
-  const sleepingInstructions = p.sleeping_instructions ?? [];
-  const exercises = p.exercises ?? [];
+  // always return an array for these fields, but that's not a runtime
+  // guarantee. It's returned a bare string instead of string[] before
+  // (e.g. sleeping_instructions as one paragraph), which crashed this
+  // screen outright since a string has .length but not .map(). Checking
+  // actual array-ness (not just null) guards against any field shape.
+  const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  // Plain string-list fields: if Bedrock returns one prose string instead of
+  // string[], keep it as a single item rather than silently dropping real
+  // medical content (medications/appointments are object arrays, so a
+  // wayward string there can't be salvaged the same way — falls back to []).
+  const asStringArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : typeof v === 'string' && v.trim() ? [v] : [];
+  const redFlags = asStringArray(p.red_flags);
+  const medications = asArray<typeof p.medications[number]>(p.medications);
+  const activityRestrictions = asStringArray(p.activity_restrictions);
+  const followUpAppointments = asArray<typeof p.follow_up_appointments[number]>(p.follow_up_appointments);
+  const dietRestrictions = asStringArray(p.diet_restrictions);
+  const woundCare = asStringArray(p.wound_care);
+  const sleepingInstructions = asStringArray(p.sleeping_instructions);
+  const exercises = asStringArray(p.exercises);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -67,7 +77,7 @@ export default function InstructionsScreen() {
             {medications.map((m, i) => (
               <View key={i} style={styles.medRow}>
                 <Text style={styles.medName}>{m.name} {m.dose}</Text>
-                <Text style={styles.medDetail}>{cap(m.frequency)} - {m.times.map(t => { const [h, min] = t.split(':').map(Number); return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }).join(', ')} - {m.instructions}</Text>
+                <Text style={styles.medDetail}>{cap(m.frequency)} - {asArray<string>(m.times).map(t => { const [h, min] = t.split(':').map(Number); return `${h % 12 || 12}:${String(min).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; }).join(', ')} - {m.instructions}</Text>
               </View>
             ))}
           </Section>
