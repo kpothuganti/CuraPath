@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -89,6 +89,11 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(!discharge);
   // keys are `${medicationId}_${time}` e.g. "abc123_08:00"
   const [takenKeys, setTakenKeys] = useState<Set<string>>(new Set());
+  // Mirrors takenKeys but updated synchronously — handleMedAction reads this
+  // (not the state closure) so rapid sequential taps on meds sharing one
+  // time slot all accumulate correctly before checking nudge completion,
+  // rather than each tap seeing a stale pre-render snapshot of takenKeys.
+  const takenKeysRef = useRef<Set<string>>(new Set());
   const C = useTheme();
   const styles = useMemo(() => makeStyles(C), [C]);
   const { t, greeting } = useUITranslations();
@@ -119,6 +124,7 @@ export default function HomeScreen() {
             })
         );
         setTakenKeys(taken);
+        takenKeysRef.current = taken;
         const ci = await getTodayCheckIn();
         setCheckInDone(ci.data.completed);
       } catch {
@@ -135,7 +141,8 @@ export default function HomeScreen() {
     const [h, m] = time.split(':');
     today.setHours(Number(h), Number(m), 0, 0);
     await logMedication(med.id, today.toISOString(), action);
-    const updated = new Set(takenKeys).add(`${med.id}_${time}`);
+    const updated = new Set(takenKeysRef.current).add(`${med.id}_${time}`);
+    takenKeysRef.current = updated;
     setTakenKeys(updated);
     cancelNudgeIfComplete(time, updated).catch(() => {});
   }
