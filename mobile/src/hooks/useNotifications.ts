@@ -218,7 +218,18 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
 // as one-shot notifications for today only. Call this once per day (e.g. on
 // app open) to keep today's window populated; cancelNudgeIfComplete handles
 // suppressing one when its doses get logged.
-export async function refreshTodayNudges(medications: MedicationRecord[]): Promise<void> {
+//
+// This function awaits a network fetch plus a loop of schedule calls, which
+// takes a real moment — if a dose gets tapped "Take" while this is still
+// running, cancelNudgeIfComplete (fired by that tap) finds nothing to
+// cancel yet, and this function would otherwise finish a moment later using
+// stale pre-tap data, scheduling a nudge nothing will ever cancel.
+// getLiveTakenKeys reads the live client-side ref at each decision point
+// (not a frozen snapshot), closing that window to just the final check.
+export async function refreshTodayNudges(
+  medications: MedicationRecord[],
+  getLiveTakenKeys?: () => Set<string>
+): Promise<void> {
   // Clear whatever was scheduled for a previous day before recomputing.
   await cancelAllNudges();
 
@@ -244,7 +255,8 @@ export async function refreshTodayNudges(medications: MedicationRecord[]): Promi
   const nudgeMap: Record<string, NudgeEntry> = {};
 
   for (const [time, meds] of medTimeMap(medications)) {
-    const allTaken = meds.every((m) => takenToday.has(`${m.id}_${time}`));
+    const liveTaken = getLiveTakenKeys?.() ?? new Set<string>();
+    const allTaken = meds.every((m) => takenToday.has(`${m.id}_${time}`) || liveTaken.has(`${m.id}_${time}`));
     if (allTaken) continue; // already handled — no nudge needed
 
     const [hourStr, minuteStr] = time.split(':');

@@ -109,7 +109,7 @@ export default function HomeScreen() {
         const m = await getMedications();
         setMedications(m.data);
         if (await getMedNotifEnabled()) {
-          refreshTodayNudges(m.data).catch(() => {});
+          refreshTodayNudges(m.data, () => takenKeysRef.current).catch(() => {});
         }
         const logs = await getMedicationLogs(1);
         const todayStr = new Date().toDateString();
