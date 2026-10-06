@@ -170,7 +170,10 @@ function medTimeMap(medications: MedicationRecord[]): Map<string, MedicationReco
   return timeMap;
 }
 
-export async function scheduleMedReminders(medications: MedicationRecord[]): Promise<void> {
+export async function scheduleMedReminders(
+  medications: MedicationRecord[],
+  getLiveTakenKeys?: () => Set<string>
+): Promise<void> {
   await cancelAllMedReminders();
 
   const { status: existing } = await Notifications.getPermissionsAsync();
@@ -208,7 +211,7 @@ export async function scheduleMedReminders(medications: MedicationRecord[]): Pro
 
   // Nudges are scheduled separately (not recurring) so a logged dose can
   // cancel just today's nudge without affecting tomorrow's.
-  await refreshTodayNudges(medications);
+  await refreshTodayNudges(medications, getLiveTakenKeys);
 }
 
 // A "did you take it?" nudge fires 30 minutes after a dose time, but only if

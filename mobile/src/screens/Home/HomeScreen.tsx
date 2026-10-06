@@ -8,7 +8,7 @@ import { authStore } from '../../store/authStore';
 import { getLatestDischarge } from '../../api/discharge';
 import { getMedications, logMedication, getMedicationLogs } from '../../api/medications';
 import { getTodayCheckIn } from '../../api/checkin';
-import { getMedNotifEnabled, refreshTodayNudges, cancelNudgeIfComplete } from '../../hooks/useNotifications';
+import { getMedNotifEnabled, scheduleMedReminders, cancelNudgeIfComplete } from '../../hooks/useNotifications';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { MedicationRecord } from '../../types';
 import Disclaimer from '../../components/Disclaimer';
@@ -109,7 +109,10 @@ export default function HomeScreen() {
         const m = await getMedications();
         setMedications(m.data);
         if (await getMedNotifEnabled()) {
-          refreshTodayNudges(m.data, () => takenKeysRef.current).catch(() => {});
+          // Full reschedule (not just a nudge refresh) on every app open —
+          // this sweeps any stale notification left over from a previous
+          // app version's scheduling logic, not just today's nudges.
+          scheduleMedReminders(m.data, () => takenKeysRef.current).catch(() => {});
         }
         const logs = await getMedicationLogs(1);
         const todayStr = new Date().toDateString();
