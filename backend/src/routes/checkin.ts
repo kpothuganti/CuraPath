@@ -6,9 +6,19 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 const router = Router();
 router.use(requireAuth);
 
+// "Today" must be the user's local calendar day, not raw UTC — UTC rolls
+// over hours before local midnight for US timezones, so a check-in done in
+// the evening was getting stored under what UTC already considered
+// "tomorrow," making the app think tomorrow's check-in was already done.
+async function localTodayFor(userId: string): Promise<string> {
+  const result = await pool.query(`SELECT timezone FROM users WHERE id = $1`, [userId]);
+  const timezone = result.rows[0]?.timezone ?? 'America/New_York';
+  return new Date().toLocaleDateString('en-CA', { timeZone: timezone });
+}
+
 // GET /checkin/today — returns today's check-in status + questions derived from red_flags
 router.get('/today', async (req: AuthRequest, res: Response): Promise<void> => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await localTodayFor(req.userId!);
 
   try {
     // Check if already completed today
@@ -64,7 +74,7 @@ router.post('/', async (req: AuthRequest, res: Response): Promise<void> => {
     return;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = await localTodayFor(req.userId!);
   const redFlagTriggered = responses.some((r) => r.answer === true);
 
   try {
