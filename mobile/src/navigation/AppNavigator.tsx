@@ -37,6 +37,7 @@ import UploadScreen from '../screens/Upload/UploadScreen';
 import ProcessingScreen from '../screens/Processing/ProcessingScreen';
 import CheckInScreen from '../screens/CheckIn/CheckInScreen';
 import RedFlagAlertScreen from '../screens/RedFlagAlert/RedFlagAlertScreen';
+import { getTodayCheckIn } from '../api/checkin';
 
 export type RootStackParamList = {
   // Auth
@@ -110,8 +111,19 @@ export default function AppNavigator() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
 
   useEffect(() => {
-    function handleNotificationData(data: Record<string, unknown>) {
+    async function handleNotificationData(data: Record<string, unknown>) {
       if (data?.screen === 'CheckIn') {
+        // Tapping an already-completed check-in's notification used to open
+        // the screen anyway, briefly flash a loading spinner, then bounce
+        // straight back once it learned it was done. Check first so a
+        // completed check-in just goes to the app instead of flashing.
+        try {
+          const res = await getTodayCheckIn();
+          if (res.data.completed) {
+            navigationRef.current?.navigate('Tabs');
+            return;
+          }
+        } catch {}
         navigationRef.current?.navigate('CheckIn');
       } else if (data?.screen === 'MedReminder') {
         navigationRef.current?.navigate('Tabs');

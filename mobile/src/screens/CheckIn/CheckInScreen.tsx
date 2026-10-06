@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getTodayCheckIn, submitCheckIn } from '../../api/checkin';
 import { dischargeStore } from '../../store/dischargeStore';
 import { RootStackParamList } from '../../navigation/AppNavigator';
@@ -13,6 +14,14 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 interface Question {
   question: string;
   red_flag: string;
+}
+
+const PROGRESS_KEY = 'checkin_progress';
+
+interface StoredProgress {
+  dateStr: string;
+  currentIndex: number;
+  answers: boolean[];
 }
 
 export default function CheckInScreen() {
@@ -28,13 +37,28 @@ export default function CheckInScreen() {
   const styles = useMemo(() => makeStyles(C), [C]);
 
   useEffect(() => {
-    getTodayCheckIn().then((res) => {
+    getTodayCheckIn().then(async (res) => {
       if (res.data.completed) {
         navigation.goBack();
         return;
       }
-      setQuestions(res.data.questions ?? []);
+      const qs = res.data.questions ?? [];
+      setQuestions(qs);
       setDischargeId(res.data.discharge_id ?? '');
+
+      // Resume where the user left off if they started this today but
+      // didn't finish — a stale entry from a previous day is discarded.
+      const todayStr = new Date().toDateString();
+      const storedRaw = await AsyncStorage.getItem(PROGRESS_KEY);
+      if (storedRaw) {
+        const stored: StoredProgress = JSON.parse(storedRaw);
+        if (stored.dateStr === todayStr && stored.answers.length < qs.length) {
+          setAnswers(stored.answers);
+          setCurrentIndex(stored.currentIndex);
+        } else {
+          await AsyncStorage.removeItem(PROGRESS_KEY);
+        }
+      }
       setLoading(false);
     });
   }, []);
@@ -44,7 +68,13 @@ export default function CheckInScreen() {
     setAnswers(newAnswers);
 
     if (currentIndex + 1 < questions.length) {
-      setCurrentIndex(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      setCurrentIndex(nextIndex);
+      await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify({
+        dateStr: new Date().toDateString(),
+        currentIndex: nextIndex,
+        answers: newAnswers,
+      }));
       return;
     }
 
@@ -55,6 +85,7 @@ export default function CheckInScreen() {
     }));
 
     const res = await submitCheckIn(dischargeId, responses);
+    await AsyncStorage.removeItem(PROGRESS_KEY);
 
     if (res.data.red_flag_triggered) {
       const triggeredFlags = questions
