@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { dischargeStore } from '../../store/dischargeStore';
 import { authStore } from '../../store/authStore';
@@ -99,45 +99,55 @@ export default function HomeScreen() {
   const { t, greeting } = useUITranslations();
   const firstName = user?.first_name ?? user?.email.split('@')[0] ?? 'there';
 
-  useEffect(() => {
-    async function load() {
-      try {
-        if (!discharge) {
-          const d = await getLatestDischarge();
-          setDischarge(d.data);
+  // Re-runs every time Home regains focus (tab switch, or returning from
+  // another screen), not just on first mount. Bottom-tab screens stay
+  // mounted across tab switches, and the app itself often isn't force-quit
+  // between sessions — a mount-once effect left checkInDone, today's taken
+  // checkmarks, and the recovery day count all stuck at whatever they were
+  // the last time Home actually mounted, even across a local midnight
+  // rollover (e.g. check-in correctly showing "completed" yesterday, but
+  // never re-checked today since Home never remounted to re-fetch it).
+  useFocusEffect(
+    useCallback(() => {
+      async function load() {
+        try {
+          if (!discharge) {
+            const d = await getLatestDischarge();
+            setDischarge(d.data);
+          }
+          const m = await getMedications();
+          setMedications(m.data);
+          if (await getMedNotifEnabled()) {
+            // Full reschedule (not just a nudge refresh) on every app open —
+            // this sweeps any stale notification left over from a previous
+            // app version's scheduling logic, not just today's nudges.
+            scheduleMedReminders(m.data, () => takenKeysRef.current).catch(() => {});
+          }
+          const logs = await getMedicationLogs(1);
+          const todayStr = new Date().toDateString();
+          const taken = new Set(
+            logs.data
+              .filter((l) => !l.skipped && l.taken_at && new Date(l.taken_at).toDateString() === todayStr)
+              .map((l) => {
+                const t = new Date(l.scheduled_time);
+                const hh = String(t.getHours()).padStart(2, '0');
+                const mm = String(t.getMinutes()).padStart(2, '0');
+                return `${l.medication_id}_${hh}:${mm}`;
+              })
+          );
+          setTakenKeys(taken);
+          takenKeysRef.current = taken;
+          const ci = await getTodayCheckIn();
+          setCheckInDone(ci.data.completed);
+        } catch {
+          // no discharge yet — show empty state
+        } finally {
+          setLoading(false);
         }
-        const m = await getMedications();
-        setMedications(m.data);
-        if (await getMedNotifEnabled()) {
-          // Full reschedule (not just a nudge refresh) on every app open —
-          // this sweeps any stale notification left over from a previous
-          // app version's scheduling logic, not just today's nudges.
-          scheduleMedReminders(m.data, () => takenKeysRef.current).catch(() => {});
-        }
-        const logs = await getMedicationLogs(1);
-        const todayStr = new Date().toDateString();
-        const taken = new Set(
-          logs.data
-            .filter((l) => !l.skipped && l.taken_at && new Date(l.taken_at).toDateString() === todayStr)
-            .map((l) => {
-              const t = new Date(l.scheduled_time);
-              const hh = String(t.getHours()).padStart(2, '0');
-              const mm = String(t.getMinutes()).padStart(2, '0');
-              return `${l.medication_id}_${hh}:${mm}`;
-            })
-        );
-        setTakenKeys(taken);
-        takenKeysRef.current = taken;
-        const ci = await getTodayCheckIn();
-        setCheckInDone(ci.data.completed);
-      } catch {
-        // no discharge yet — show empty state
-      } finally {
-        setLoading(false);
       }
-    }
-    load();
-  }, []);
+      load();
+    }, [])
+  );
 
   async function handleMedAction(med: MedicationRecord, time: string, action: 'taken' | 'skipped') {
     const today = new Date();
