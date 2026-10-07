@@ -214,13 +214,26 @@ export async function scheduleMedReminders(
   await refreshTodayNudges(medications, getLiveTakenKeys);
 }
 
+const NUDGE_WINDOW_DAYS = 2; // today + tomorrow
+
+function nudgeMapKey(dateStr: string, time: string): string {
+  return `${dateStr}|${time}`;
+}
+
 // A "did you take it?" nudge fires 30 minutes after a dose time, but only if
 // that dose hasn't actually been logged. Local notifications can't be
 // cancelled per-occurrence of a recurring trigger — cancelling by ID kills
-// the whole daily series — so nudges are scheduled fresh, one day at a time,
-// as one-shot notifications for today only. Call this once per day (e.g. on
-// app open) to keep today's window populated; cancelNudgeIfComplete handles
-// suppressing one when its doses get logged.
+// the whole daily series — so nudges are scheduled fresh as one-shot
+// notifications, one per day per time slot. Call this on app open to keep
+// the window populated; cancelNudgeIfComplete handles suppressing one when
+// its doses get logged.
+//
+// Schedules a rolling window of today + tomorrow, not just today — if this
+// only covered today, a user who didn't open the app at all between last
+// night and this morning's dose time would never get a nudge scheduled for
+// that dose at all, regardless of whether they took it. Scheduling tomorrow
+// too means it's already in place by the time tomorrow arrives, as long as
+// the app was opened at least once within the window.
 //
 // This function awaits a network fetch plus a loop of schedule calls, which
 // takes a real moment — if a dose gets tapped "Take" while this is still
@@ -228,20 +241,21 @@ export async function scheduleMedReminders(
 // cancel yet, and this function would otherwise finish a moment later using
 // stale pre-tap data, scheduling a nudge nothing will ever cancel.
 // getLiveTakenKeys reads the live client-side ref at each decision point
-// (not a frozen snapshot), closing that window to just the final check.
+// (not a frozen snapshot), closing that window to just the final check —
+// only matters for today, since tomorrow's doses can't be logged yet.
 export async function refreshTodayNudges(
   medications: MedicationRecord[],
   getLiveTakenKeys?: () => Set<string>
 ): Promise<void> {
-  // Clear whatever was scheduled for a previous day before recomputing.
+  // Clear whatever was scheduled before recomputing.
   await cancelAllNudges();
 
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return;
 
   const strings = await getNotifStrings();
-  const todayStr = new Date().toDateString();
   const now = new Date();
+  const todayStr = now.toDateString();
 
   const logsRes = await getMedicationLogs(1);
   const takenToday = new Set(
@@ -257,33 +271,43 @@ export async function refreshTodayNudges(
 
   const nudgeMap: Record<string, NudgeEntry> = {};
 
-  for (const [time, meds] of medTimeMap(medications)) {
-    const liveTaken = getLiveTakenKeys?.() ?? new Set<string>();
-    const allTaken = meds.every((m) => takenToday.has(`${m.id}_${time}`) || liveTaken.has(`${m.id}_${time}`));
-    if (allTaken) continue; // already handled — no nudge needed
+  for (let dayOffset = 0; dayOffset < NUDGE_WINDOW_DAYS; dayOffset++) {
+    const targetDay = new Date(now);
+    targetDay.setDate(targetDay.getDate() + dayOffset);
+    const targetDateStr = targetDay.toDateString();
+    const isToday = dayOffset === 0;
 
-    const [hourStr, minuteStr] = time.split(':');
-    const hour = parseInt(hourStr, 10);
-    const minute = parseInt(minuteStr, 10);
-    const nudgeMinute = (minute + 30) % 60;
-    const nudgeHour = minute + 30 >= 60 ? (hour + 1) % 24 : hour;
+    for (const [time, meds] of medTimeMap(medications)) {
+      if (isToday) {
+        const liveTaken = getLiveTakenKeys?.() ?? new Set<string>();
+        const allTaken = meds.every((m) => takenToday.has(`${m.id}_${time}`) || liveTaken.has(`${m.id}_${time}`));
+        if (allTaken) continue; // already handled today — no nudge needed
+      }
+      // Future days can't have a logged dose yet — always schedule them.
 
-    const nudgeDate = new Date();
-    nudgeDate.setHours(nudgeHour, nudgeMinute, 0, 0);
-    if (nudgeDate <= now) continue; // this dose's nudge window already passed today
+      const [hourStr, minuteStr] = time.split(':');
+      const hour = parseInt(hourStr, 10);
+      const minute = parseInt(minuteStr, 10);
+      const nudgeMinute = (minute + 30) % 60;
+      const nudgeHour = minute + 30 >= 60 ? (hour + 1) % 24 : hour;
 
-    const medList = meds.map((m) => `${m.name} ${m.dose}`).join(' · ');
-    const nudgeId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: strings.medNudgeTitle,
-        body: `${medList} ${strings.medNudgeSuffix}`,
-        data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
-        interruptionLevel: 'timeSensitive',
-      },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: nudgeDate },
-    });
+      const nudgeDate = new Date(targetDay);
+      nudgeDate.setHours(nudgeHour, nudgeMinute, 0, 0);
+      if (nudgeDate <= now) continue; // this dose's nudge window already passed
 
-    nudgeMap[time] = { id: nudgeId, dateStr: todayStr, medIds: meds.map((m) => m.id) };
+      const medList = meds.map((m) => `${m.name} ${m.dose}`).join(' · ');
+      const nudgeId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: strings.medNudgeTitle,
+          body: `${medList} ${strings.medNudgeSuffix}`,
+          data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
+          interruptionLevel: 'timeSensitive',
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: nudgeDate },
+      });
+
+      nudgeMap[nudgeMapKey(targetDateStr, time)] = { id: nudgeId, dateStr: targetDateStr, medIds: meds.map((m) => m.id) };
+    }
   }
 
   await AsyncStorage.setItem(MED_NUDGE_MAP_KEY, JSON.stringify(nudgeMap));
@@ -291,19 +315,22 @@ export async function refreshTodayNudges(
 
 // Called after logging a dose as taken — cancels today's nudge for that
 // time slot once every medication scheduled at that time has been logged.
+// Only ever targets today's entry — there's no UI to log a future dose.
 export async function cancelNudgeIfComplete(time: string, takenKeys: Set<string>): Promise<void> {
   const stored = await AsyncStorage.getItem(MED_NUDGE_MAP_KEY);
   if (!stored) return;
   const nudgeMap: Record<string, NudgeEntry> = JSON.parse(stored);
 
-  const entry = nudgeMap[time];
-  if (!entry || entry.dateStr !== new Date().toDateString()) return;
+  const todayStr = new Date().toDateString();
+  const key = nudgeMapKey(todayStr, time);
+  const entry = nudgeMap[key];
+  if (!entry) return;
 
   const allTaken = entry.medIds.every((medId) => takenKeys.has(`${medId}_${time}`));
   if (!allTaken) return;
 
   await Notifications.cancelScheduledNotificationAsync(entry.id).catch(() => {});
-  delete nudgeMap[time];
+  delete nudgeMap[key];
   await AsyncStorage.setItem(MED_NUDGE_MAP_KEY, JSON.stringify(nudgeMap));
 }
 
