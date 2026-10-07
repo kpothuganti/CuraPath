@@ -214,7 +214,20 @@ export async function scheduleMedReminders(
   await refreshTodayNudges(medications, getLiveTakenKeys);
 }
 
-const NUDGE_WINDOW_DAYS = 2; // today + tomorrow
+const DESIRED_NUDGE_WINDOW_DAYS = 5;
+const IOS_PENDING_NOTIFICATION_CAP = 64; // hard OS-level limit, silently drops anything past it
+const NON_NUDGE_RESERVED_SLOTS = 10; // headroom for main reminders, check-in, and margin
+
+// Nudges multiply by (days × distinct dose times) — unlike the recurring
+// main reminders, which are one slot each regardless of window size. A
+// patient with many medication times could blow past iOS's cap with a flat
+// window, and the OS drops the excess silently with no error to catch. This
+// scales the window down automatically for a denser schedule instead.
+function computeNudgeWindowDays(numDistinctTimes: number): number {
+  if (numDistinctTimes <= 0) return DESIRED_NUDGE_WINDOW_DAYS;
+  const maxByCap = Math.floor((IOS_PENDING_NOTIFICATION_CAP - NON_NUDGE_RESERVED_SLOTS) / numDistinctTimes);
+  return Math.max(1, Math.min(DESIRED_NUDGE_WINDOW_DAYS, maxByCap));
+}
 
 function nudgeMapKey(dateStr: string, time: string): string {
   return `${dateStr}|${time}`;
@@ -270,8 +283,9 @@ export async function refreshTodayNudges(
   );
 
   const nudgeMap: Record<string, NudgeEntry> = {};
+  const windowDays = computeNudgeWindowDays(medTimeMap(medications).size);
 
-  for (let dayOffset = 0; dayOffset < NUDGE_WINDOW_DAYS; dayOffset++) {
+  for (let dayOffset = 0; dayOffset < windowDays; dayOffset++) {
     const targetDay = new Date(now);
     targetDay.setDate(targetDay.getDate() + dayOffset);
     const targetDateStr = targetDay.toDateString();
