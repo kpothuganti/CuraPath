@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script type="module" src="https://cdn.jsdelivr.net/npm/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://cdn.jsdelivr.net/npm/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -167,8 +169,9 @@
     .feature-icon {
       width: 48px; height: 48px; border-radius: 14px;
       background: #eef2ff; display: flex; align-items: center; justify-content: center;
-      font-size: 22px; margin-bottom: 16px;
+      margin-bottom: 16px;
     }
+    .feature-icon ion-icon { font-size: 22px; color: var(--accent); }
     .feature-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
     .feature-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
 
@@ -349,44 +352,44 @@
     </p>
     <div class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon">🤖</div>
+        <div class="feature-icon"><ion-icon name="camera-outline"></ion-icon></div>
         <div class="feature-title">AI-Powered Parsing</div>
         <div class="feature-desc">Upload a photo or PDF of your discharge paperwork. Our AI extracts medications, restrictions, follow-up appointments, and warning signs instantly.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">💊</div>
+        <div class="feature-icon"><ion-icon name="medical-outline"></ion-icon></div>
         <div class="feature-title">Medication Reminders</div>
-        <div class="feature-desc">Time-sensitive push notifications remind you to take each medication at the exact times listed on your discharge paperwork — even through Focus mode.</div>
+        <div class="feature-desc">Time-sensitive push notifications remind you to take each medication at the exact times listed on your discharge paperwork — even through Focus mode. If you've already logged a dose, you won't get nagged about it.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🩺</div>
+        <div class="feature-icon"><ion-icon name="fitness-outline"></ion-icon></div>
         <div class="feature-title">Daily Symptom Check-Ins</div>
         <div class="feature-desc">Answer a quick daily check-in based on the red flags in your specific discharge instructions. Know when something needs attention.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">📋</div>
+        <div class="feature-icon"><ion-icon name="walk-outline"></ion-icon></div>
         <div class="feature-title">Activity Restrictions</div>
         <div class="feature-desc">See your activity restrictions clearly laid out each day — no more hunting through paperwork to remember what you can and can't do.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">📞</div>
+        <div class="feature-icon"><ion-icon name="call-outline"></ion-icon></div>
         <div class="feature-title">Provider Contact</div>
         <div class="feature-desc">Your care team's phone number is automatically extracted and saved so you can reach them instantly if you have concerns.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">📅</div>
+        <div class="feature-icon"><ion-icon name="calendar-outline"></ion-icon></div>
         <div class="feature-title">Follow-Up Appointments</div>
         <div class="feature-desc">CuraPath automatically extracts your follow-up visit schedule from your discharge paperwork — so you always know when your next appointment is and never miss a critical check-up.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🌍</div>
+        <div class="feature-icon"><ion-icon name="globe-outline"></ion-icon></div>
         <div class="feature-title">Multilingual Support</div>
-        <div class="feature-desc">Receive your recovery instructions in your preferred language. CuraPath supports 30+ languages including Spanish, French, Arabic, Chinese, Hindi, Telugu, and more — so nothing gets lost in translation.</div>
+        <div class="feature-desc">Receive your recovery instructions in your preferred language. CuraPath supports 32 languages including Spanish, French, Arabic, Chinese, Hindi, Telugu, and more — so nothing gets lost in translation.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">🔒</div>
+        <div class="feature-icon"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
         <div class="feature-title">HIPAA Compliant</div>
-        <div class="feature-desc">Built on AWS with encryption at rest and in transit, signed BAA, and secure JWT authentication. Your health data stays yours.</div>
+        <div class="feature-desc">Built on AWS with encryption at rest and in transit, a signed BAA covering AI processing, and secure JWT authentication. Your health data stays yours.</div>
       </div>
     </div>
   </section>
