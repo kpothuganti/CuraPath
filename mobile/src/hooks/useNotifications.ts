@@ -170,7 +170,32 @@ function medTimeMap(medications: MedicationRecord[]): Map<string, MedicationReco
   return timeMap;
 }
 
+// scheduleMedReminders can be triggered from more than one place around the
+// same moment — e.g. saving a fresh upload, then HomeScreen's own focus
+// effect firing right after the navigation away from Review. Each call
+// starts with cancelAllMedReminders(), but if two calls genuinely overlap,
+// the second can read storage before the first finishes writing its new
+// notification IDs — both end up actually scheduling a reminder, and only
+// one set of IDs survives to be tracked, leaving the other permanently
+// orphaned (duplicate notifications that nothing will ever cancel). Sharing
+// one in-flight promise across all callers collapses concurrent calls into
+// a single execution, the same pattern used for authStore's refresh().
+let scheduleMedRemindersPromise: Promise<void> | null = null;
+
 export async function scheduleMedReminders(
+  medications: MedicationRecord[],
+  getLiveTakenKeys?: () => Set<string>
+): Promise<void> {
+  if (scheduleMedRemindersPromise) return scheduleMedRemindersPromise;
+  scheduleMedRemindersPromise = doScheduleMedReminders(medications, getLiveTakenKeys);
+  try {
+    await scheduleMedRemindersPromise;
+  } finally {
+    scheduleMedRemindersPromise = null;
+  }
+}
+
+async function doScheduleMedReminders(
   medications: MedicationRecord[],
   getLiveTakenKeys?: () => Set<string>
 ): Promise<void> {
