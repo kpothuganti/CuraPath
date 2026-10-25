@@ -73,7 +73,7 @@ const UI_STRINGS: Record<string, string> = {
   // Notifications
   medReminderTitle: 'Time to take your medications',
   medNudgeTitle: 'Did you take your medications?',
-  medNudgeSuffix: '— due 30 minutes ago.',
+  medNudgeSuffix: 'They were due 30 minutes ago.',
   checkInNotifTitle: 'Daily Check-In',
   checkInNotifBody: 'How are you feeling today? Tap to complete your daily symptom check.',
   // Disclaimer

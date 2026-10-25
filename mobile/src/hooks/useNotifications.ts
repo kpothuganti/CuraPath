@@ -7,7 +7,11 @@ import { getMedicationLogs } from '../api/medications';
 const EN_NOTIF_STRINGS = {
   medTitle: 'Time to take your medications',
   medNudgeTitle: 'Did you take your medications?',
-  medNudgeSuffix: '— due 30 minutes ago.',
+  // Deliberately generic — unlike the main reminder, this never names
+  // specific medications. It's purely a "you're late" follow-up with no
+  // extra utility from specifics, so there's no reason to risk medication
+  // names (which can reveal health conditions) showing on a lock screen.
+  medNudgeSuffix: 'They were due 30 minutes ago.',
   checkInTitle: 'Daily Check-In',
   checkInBody: 'How are you feeling today? Tap to complete your daily symptom check.',
 };
@@ -334,11 +338,10 @@ export async function refreshTodayNudges(
       nudgeDate.setHours(nudgeHour, nudgeMinute, 0, 0);
       if (nudgeDate <= now) continue; // this dose's nudge window already passed
 
-      const medList = meds.map((m) => `${m.name} ${m.dose}`).join(' · ');
       const nudgeId = await Notifications.scheduleNotificationAsync({
         content: {
           title: strings.medNudgeTitle,
-          body: `${medList} ${strings.medNudgeSuffix}`,
+          body: strings.medNudgeSuffix,
           data: { screen: 'MedReminder', scheduledTime: time, isNudge: true },
           interruptionLevel: 'timeSensitive',
         },
