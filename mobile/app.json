@@ -32,7 +32,8 @@
           "organization": "curapath-kf",
           "project": "curapath-mobile"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "ios": {
       "supportsTablet": true,

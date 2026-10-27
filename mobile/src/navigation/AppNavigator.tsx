@@ -6,10 +6,15 @@ import { Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 
-// Show notifications when app is in the foreground
+// Show notifications when app is in the foreground. shouldShowAlert is
+// deprecated as of expo-notifications' SDK 58 bump — shouldShowBanner and
+// shouldShowList replace it (banner = top-of-screen alert while the app is
+// open, list = Notification Center entry); both true reproduces the same
+// behavior shouldShowAlert: true used to provide.
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: false,
     shouldSetBadge: false,
   }),
