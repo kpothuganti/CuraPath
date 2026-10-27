@@ -135,7 +135,7 @@ export default function SettingsScreen() {
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={PHONE_ACCESSORY_ID}>
           <View style={styles.phoneAccessoryBar}>
-            <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+            <TouchableOpacity style={styles.phoneAccessoryBubble} onPress={() => Keyboard.dismiss()}>
               <Text style={styles.phoneAccessoryDone}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -314,11 +314,15 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     phoneInput: { color: C.textPrimary, fontSize: 14, textAlign: 'right', flex: 1, paddingLeft: 12 },
     phoneAccessoryBar: {
       flexDirection: 'row', justifyContent: 'flex-end',
-      paddingHorizontal: 16, paddingVertical: 10,
-      backgroundColor: C.surfaceStrong,
-      borderTopWidth: 1, borderTopColor: C.border,
+      paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14,
+      backgroundColor: C.bg,
     },
-    phoneAccessoryDone: { color: C.accent, fontSize: 16, fontWeight: '600' },
+    phoneAccessoryBubble: {
+      backgroundColor: C.accent,
+      paddingHorizontal: 18, paddingVertical: 9,
+      borderRadius: 20,
+    },
+    phoneAccessoryDone: { color: '#fff', fontSize: 15, fontWeight: '700' },
     fieldHint: { color: C.textMuted, fontSize: 11, lineHeight: 16, paddingBottom: 8 },
     disclaimer: { color: C.textMuted, fontSize: 11, lineHeight: 16 },
     timePickerRow: { paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: C.border },
