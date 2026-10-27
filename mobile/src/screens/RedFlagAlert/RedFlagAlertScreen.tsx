@@ -13,7 +13,15 @@ export default function RedFlagAlertScreen({ navigation, route }: Props) {
   const styles = useMemo(() => makeStyles(C), [C]);
 
   function callProvider() {
-    Linking.openURL(`tel:${providerPhone}`).catch(() =>
+    // iOS formats the number in the native call UI based on the device's
+    // current region, not where the number is actually from — a bare
+    // 10-digit US number shows up grouped oddly (e.g. "xxxx-xxxxxx") on a
+    // device currently set to a non-US region. Prefixing with the +1
+    // country code tells iOS unambiguously this is a US number, so it
+    // displays with standard US formatting regardless of device region.
+    const digits = (providerPhone ?? '').replace(/\D/g, '');
+    const e164 = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith('1') ? `+${digits}` : providerPhone;
+    Linking.openURL(`tel:${e164}`).catch(() =>
       Alert.alert('Could not open phone', `Please call ${providerPhone} manually.`)
     );
   }

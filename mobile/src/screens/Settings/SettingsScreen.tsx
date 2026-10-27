@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch, ScrollView, Modal, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Switch, ScrollView, Modal, FlatList, ActivityIndicator, InputAccessoryView, Keyboard, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authStore } from '../../store/authStore';
 import { dischargeStore } from '../../store/dischargeStore';
@@ -26,6 +26,8 @@ import { translationsStore } from '../../store/translationsStore';
 import { themeStore, ThemePreference } from '../../store/themeStore';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+
+const PHONE_ACCESSORY_ID = 'providerPhoneDoneBar';
 
 export default function SettingsScreen() {
   const { user, logout } = authStore();
@@ -121,12 +123,23 @@ export default function SettingsScreen() {
               placeholderTextColor={C.placeholderText}
               keyboardType="phone-pad"
               returnKeyType="done"
+              inputAccessoryViewID={Platform.OS === 'ios' ? PHONE_ACCESSORY_ID : undefined}
             />
           </View>
           <Text style={styles.fieldHint}>
             Used for the tap-to-call button when a red flag is triggered.
           </Text>
         </View>
+      )}
+
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={PHONE_ACCESSORY_ID}>
+          <View style={styles.phoneAccessoryBar}>
+            <TouchableOpacity onPress={() => Keyboard.dismiss()}>
+              <Text style={styles.phoneAccessoryDone}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
       )}
 
       <View style={styles.section}>
@@ -299,6 +312,13 @@ function makeStyles(C: ReturnType<typeof useTheme>) {
     rowLabel: { color: C.textSecondary, fontSize: 15 },
     rowValue: { color: C.textMuted, fontSize: 14 },
     phoneInput: { color: C.textPrimary, fontSize: 14, textAlign: 'right', flex: 1, paddingLeft: 12 },
+    phoneAccessoryBar: {
+      flexDirection: 'row', justifyContent: 'flex-end',
+      paddingHorizontal: 16, paddingVertical: 10,
+      backgroundColor: C.surfaceStrong,
+      borderTopWidth: 1, borderTopColor: C.border,
+    },
+    phoneAccessoryDone: { color: C.accent, fontSize: 16, fontWeight: '600' },
     fieldHint: { color: C.textMuted, fontSize: 11, lineHeight: 16, paddingBottom: 8 },
     disclaimer: { color: C.textMuted, fontSize: 11, lineHeight: 16 },
     timePickerRow: { paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: C.border },
